@@ -7,7 +7,7 @@ program main
 ! determine if step size is automatic
 ! determine reactor type
 use iso_fortran_env
-use matrices
+use neudens
 
 implicit none
 character(1)         :: rtype, Y_N     ! Reactor type and answer variable
@@ -48,7 +48,7 @@ read *, tstart, tend
 ! Format:
 10 format (/, A)
 
-call mat(rtype, stepsize, tstart, tend, pt)
+call neuden(rtype, stepsize, tstart, tend, pt)
 
 
 end program main
