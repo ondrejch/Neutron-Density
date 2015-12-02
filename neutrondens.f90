@@ -4,98 +4,107 @@ implicit none
 
 contains
 
-subroutine neuden(rtype, h, tstart, tend, pt)
+subroutine neuden(rtype, h0, tstart, tend, pt)
 character(1), intent(in)         :: rtype           ! reactor type
-real(real64), intent(in)         :: h               ! step size
-real(real64), intent(in)         :: tstart, tend    ! start and end time
-real(real64), intent(in)         :: pt              ! rho
-integer                          :: i, j, counter, info   ! counting variables
-real(real64), dimension(7)       :: y, y0, yscale, g1, g2, g3, g4
-real(real64), dimension(7)       :: dfdt, fyt, RHS1, RHS2, RHS3, RHS4
-real(real64)                     :: nt, t           ! neutron density
+real(real64), intent(in)         :: h0              ! step size information (0 for auto step)
+real(real64), intent(in)         :: tstart          ! start time
+real(real64), intent(in)         :: tend            ! end time  
+real(real64), intent(in)         :: pt              ! rho -- reactivity
+integer                          :: i, j            ! counting variables
+integer                          :: counter         ! iteration counter
+integer                          :: info            ! llapack error variable
+real(real64)                     :: h               ! step size
+real(real64), dimension(7)       :: y               ! matrix containing n(t) and c(t)
+real(real64), dimension(7)       :: y0              ! matrix containing initial values for n(t) and c(t)
+real(real64), dimension(7)       :: yscale          ! error scale value
+real(real64), dimension(7)       :: g1              ! variable of first equation
+real(real64), dimension(7)       :: g2              ! variable of second equation
+real(real64), dimension(7)       :: g3              ! variable of fourth equation
+real(real64), dimension(7)       :: g4              ! variable of fifth equation
+real(real64), dimension(7)       :: dfdt         
+real(real64), dimension(7)       :: fyt
+real(real64), dimension(7)       :: RHS1            ! right-hand-side of equation 1
+real(real64), dimension(7)       :: RHS2            ! right-hand-side of equation 2
+real(real64), dimension(7)       :: RHS3            ! right-hand-side of equation 3
+real(real64), dimension(7)       :: RHS4            ! right-hand-side of equation 4
+real(real64)                     :: nt              ! neutron density
+real(real64)                     :: t               ! time
 real(real64), dimension(6)       :: Ct              ! delayed neutron precursers
-real(real64), dimension(7,7)     :: identity, dfdy, LHS
-real(real64), dimension(7)       :: beta, ipiv      ! Beta values
+real(real64), dimension(7,7)     :: identity        ! identity matrix 
+real(real64), dimension(7,7)     :: LHS             ! left-hand-side of all linear equations
+real(real64), dimension(7,7)     :: dfdy
+real(real64), dimension(7)       :: beta            ! beta values for each decay group
+real(real64), dimension(7)       :: ipiv            ! pivot vector used in llapack subroutines
 real(real64), dimension(6)       :: lambda          ! half life constants
 real(real64)                     :: ngen            ! neutron generation time
-real(real64)                     :: gamma           ! constant
-real(real64)                     :: a21, a31, a32
-real(real64)                     :: c21, c31, c32, c41, c42, c43
-real(real64)                     :: b1, b2, b3, b4
-real(real64)                     :: e1, e2, e3, e4
-real(real64)                     :: c1, c2, c3, c4
-real(real64)                     :: a2, a3
-
+real(real64), parameter          :: gma = 0.5_real64        
+real(real64), parameter          :: a21 = 2.0_real64
+real(real64), parameter          :: a31 = 1.92_real64
+real(real64), parameter          :: a32 = 0.24_real64
+real(real64), parameter          :: c21 = -8.0_real64
+real(real64), parameter          :: c31 = 14.88_real64
+real(real64), parameter          :: c32 = 2.4_real64
+real(real64), parameter          :: c41 = -0.869_real64
+real(real64), parameter          :: c42 = -0.432_real64
+real(real64), parameter          :: c43 = -0.4_real64
+real(real64), parameter          :: b1 = 19.0_real64/9.0_real64
+real(real64), parameter          :: b2 = 0.5_real64
+real(real64), parameter          :: b3 = 25.0_real64/108.0_real64
+real(real64), parameter          :: b4 = 125.0_real64/108.0_real64
+real(real64), parameter          :: e1 = 17.0_real64/54.0_real64
+real(real64), parameter          :: e2 = 7.0_real64/36.0_real64
+real(real64), parameter          :: e3 = 0.0_real64
+real(real64), parameter          :: e4 = 125.0_real64/108.0_real64
+real(real64), parameter          :: c1 = 0.5_real64
+real(real64), parameter          :: c2 = -1.5_real64
+real(real64), parameter          :: c3 = 2.42_real64
+real(real64), parameter          :: c4 = 0.116_real64
+real(real64), parameter          :: a2 = 1.0_real64
+real(real64), parameter          :: a3 = 0.6_real64
+real(real64), dimension(7)       :: err
+real(real64), parameter          :: eps = 10.0_real64**(-6)       ! accepted error value
+real(real64)                     :: hretry, hnext, havg, errmax
 external dgetrf, dgetrs
-gamma = 0.5
-
-a21 = 2.0
-a31 = 1.92
-a32 = 0.24
-
-c21 = -8.0
-c31 = 14.88
-c32 = 2.4
-c41 = -0.896
-c42 = -0.432
-c43 = -0.4
-
-b1 = 19.0/9.0
-b2 = 0.5
-b3 = 25.0/108.0
-b4 = 125.0/108.0
-
-e1 = 17.0/54.0
-e2 = 7.0/36.0
-e3 = 0.0
-e4 = 125.0/108.0
-
-c1 = 0.5
-c2 = -1.5
-c3 = 2.42
-c4 = 0.116
-
-a2 = 1.0
-a3 = 0.6 
+ 
 
 ! for thermal neutrons
 if (rtype == 't') then
-  beta(1) = 0.000285   ! beta of group 1
-  beta(2) = 0.0015975  ! beta of group 2
-  beta(3) = 0.00141    ! beta of group 3
-  beta(4) = 0.0030525  ! beta of group 4
-  beta(5) = 0.00096    ! beta of group 5
-  beta(6) = 0.000195   ! beta of group 6
-  beta(7) = 0.0075     ! Total Beta
+  beta(1) = 0.000285_real64   ! beta of group 1
+  beta(2) = 0.0015975_real64  ! beta of group 2
+  beta(3) = 0.00141_real64    ! beta of group 3
+  beta(4) = 0.0030525_real64  ! beta of group 4
+  beta(5) = 0.00096_real64    ! beta of group 5
+  beta(6) = 0.000195_real64   ! beta of group 6
+  beta(7) = 0.0075_real64     ! Total Beta
 
-  lambda(1) = 0.0127   ! decay constant of group 1
-  lambda(2) = 0.0317   ! decay constant of group 2
-  lambda(3) = 0.115    ! decay constant of group 3
-  lambda(4) = 0.311    ! decay constant of group 4
-  lambda(5) = 1.4      ! decay constant of group 5
-  lambda(6) = 3.87     ! decay constant of group 6
-  ngen      = 0.0005   ! average neutron generation time
+  lambda(1) = 0.0127_real64   ! decay constant of group 1
+  lambda(2) = 0.0317_real64   ! decay constant of group 2
+  lambda(3) = 0.115_real64    ! decay constant of group 3
+  lambda(4) = 0.311_real64    ! decay constant of group 4
+  lambda(5) = 1.4_real64      ! decay constant of group 5
+  lambda(6) = 3.87_real64     ! decay constant of group 6
+  ngen      = 0.0005_real64   ! average neutron generation time
 ! for fast neutrons
 else if (rtype == 'f') then
-  beta(1) = 0.0001672   ! beta of group 1     
-  beta(2) = 0.001232    ! beta of group 2
-  beta(3) = 0.0009504   ! beta of group 3
-  beta(4) = 0.001443    ! beta of group 4
-  beta(5) = 0.0004534   ! beta of group 5
-  beta(6) = 0.000154    ! beta of group 6
-  beta(7) = 0.0044      ! Total Beta
+  beta(1) = 0.0001672_real64   ! beta of group 1     
+  beta(2) = 0.001232_real64    ! beta of group 2
+  beta(3) = 0.0009504_real64   ! beta of group 3
+  beta(4) = 0.001443_real64    ! beta of group 4
+  beta(5) = 0.0004534_real64   ! beta of group 5
+  beta(6) = 0.000154_real64    ! beta of group 6
+  beta(7) = 0.0044_real64      ! Total Beta
 
-  lambda(1) = 0.0129    ! decay constant of group 1
-  lambda(2) = 0.0311    ! decay constant of gourp 2
-  lambda(3) = 0.134     ! decay constant of group 3
-  lambda(4) = 0.331     ! decay constant of group 4
-  lambda(5) = 1.26      ! decay constant of group 5
-  lambda(6) = 3.21      ! decay constant of group 6
-  ngen      = 10.0E-7   ! average neutron generation time  
+  lambda(1) = 0.0129_real64    ! decay constant of group 1
+  lambda(2) = 0.0311_real64    ! decay constant of gourp 2
+  lambda(3) = 0.134_real64     ! decay constant of group 3
+  lambda(4) = 0.331_real64     ! decay constant of group 4
+  lambda(5) = 1.26_real64      ! decay constant of group 5
+  lambda(6) = 3.21_real64      ! decay constant of group 6
+  ngen      = 10.0E-7_real64   ! average neutron generation time  
 end if
 
 ! initial values for nt and ct
-nt = 1.0
+nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
 Ct(2) = (beta(2)/(ngen*lambda(2)))*nt 
 Ct(3) = (beta(3)/(ngen*lambda(3)))*nt 
@@ -113,19 +122,22 @@ y0(5) = Ct(4)
 y0(6) = Ct(5)
 y0(7) = Ct(6)
 
-! Assume initial g values to be 0
+!if (h0 == 0.0) then
+!  h = 0.001
+!else 
+h = h0
+!end if
+
+!havg = h
 counter = 0
 t = tstart
 open(unit=5, file="nt.out")
 open(unit=6, file="ct.out")
 
+y = y0
+
 do  
-
   ! Calculate y   
-  if (counter == 0) then
-    y = y0
-  end if
-
   write(5,'(ES15.3, ES15.6)') t, y(1)
   
   write(6, '(ES10.3)', advance='no') t
@@ -135,15 +147,16 @@ do
   write(6,*)
 
   ! assign values to matrix dfdy
+!  dfdy(2:7,1) = beta(i-1)/ngen ** doesn't work due to beta(i-1) needed ** 
+!  dfdy(1,2:7) = lambda(i-1)  ** doesn't work to to lambda(i-1) needed **
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
     dfdy(i,1) = beta(i-1)/ngen
     dfdy(1,i) = lambda(i-1)
   end do
+
+  dfdy(2:7,2:7)  = 0.0_real64
   do i = 2,7
-    do j = 2,7
-      dfdy(i,j) = 0.0
-    end do
     dfdy(i,i) = -lambda(i-1)
   end do
   
@@ -151,25 +164,23 @@ do
   fyt = matmul(dfdy, y)
 
   ! Calculate yscale
-  yscale = abs(y) + abs(h * fyt) + 10**(-30)
+  yscale = abs(y) + abs(h * fyt) + 10.0_real64**(-30)
  
   ! create matrix dfdt
-  dfdt(1) = (nt/ngen)*(0.0) ! for non-constant rho dfdt = (nt/ngen)(dpt/dt)
-  do i = 2,7
-    dfdt(i) = 0.0
-  end do
-  
+  dfdt(1) = (nt/ngen)*(0.0_real64) ! for non-constant rho dfdt = (nt/ngen)(dpt/dt)
+  dfdt(2:7) = 0.0_real64
+      
   ! start building left hand side matrix
   
   ! Build identity matrix
   do i = 1,7
     do j = 1,7
-      identity(i,j) = 0.0
+      identity(i,j) = 0.0_real64
     end do
-    identity(i,i) = 1.0
+    identity(i,i) = 1.0_real64
   end do
   
-  LHS = ((1.0/(gamma*h))*identity - dfdy)
+  LHS = ((1.0_real64/(gma*h))*identity - dfdy)
 
   ! build first right hand side matrix
   RHS1 = fyt + h*c1*dfdt
@@ -204,15 +215,35 @@ do
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS4, 7, info)
   g4 = RHS4
 
+!  if (h0 == 0.0) then
+!    err = e1*g1+e2*g2+e3*g3+e4*g4
+!    errmax = max(err(1)/yscale(1), err(2)/yscale(2), err(3)/yscale(3),&
+!           & err(4)/yscale(4), err(5)/yscale(5), err(6)/yscale(6), err(7)/yscale(7))
+!    if (errmax > eps) then
+!      hretry = max(0.9*h*(errmax)**(-1.0/3.0), 0.0,5.0*h)
+!      h = hretry
+!      cycle
+!    else if (errmax > 0.1296) then
+!      hnext = 0.9*h*(errmax)**(-0.25)
+!      h = hnext
+!    else
+!      hnext = 1.5*h
+!      h = hnext
+!    end if
+!  end if    
+    
+
+
   ! Calculate next y
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
 
 
-  
-  
+!  havg = (havg + h)/counter
+!  print *, "havg = ", havg
+!  print *, counter
   counter = counter + 1
   t = t + h
-  
+    
   if (t > tend) then
     exit
   else
