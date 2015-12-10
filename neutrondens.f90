@@ -1,15 +1,15 @@
 module neudens
 use iso_fortran_env
+use inputinterp
 implicit none
 
 contains
 
-subroutine neuden(rtype, h0, tstart, tend, pt)
+subroutine neuden(rtype, h0, filename, n)
 character(1), intent(in)         :: rtype           ! reactor type
 real(real64), intent(in)         :: h0              ! step size information (0 for auto step)
-real(real64), intent(in)         :: tstart          ! start time
-real(real64), intent(in)         :: tend            ! end time  
-real(real64), intent(in)         :: pt              ! rho -- reactivity
+character(100), intent(in)       :: filename        ! input filename
+integer, intent(in)              :: n               ! input length  
 integer                          :: i, j            ! counting variables
 integer                          :: counter         ! iteration counter
 integer                          :: info            ! llapack error variable
@@ -28,6 +28,7 @@ real(real64), dimension(7)       :: RHS2            ! right-hand-side of equatio
 real(real64), dimension(7)       :: RHS3            ! right-hand-side of equation 3
 real(real64), dimension(7)       :: RHS4            ! right-hand-side of equation 4
 real(real64)                     :: nt              ! neutron density
+real(real64)                     :: pt              ! reactivity value
 real(real64)                     :: t               ! time
 real(real64), dimension(6)       :: Ct              ! delayed neutron precursers
 real(real64), dimension(7,7)     :: identity        ! identity matrix 
@@ -103,6 +104,9 @@ else if (rtype == 'f') then
   ngen      = 10.0E-7_real64   ! average neutron generation time  
 end if
 
+! initialize the input data
+call init_input_data(filename, n)
+
 ! initial values for nt and ct
 nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
@@ -130,7 +134,7 @@ h = h0
 
 !havg = h
 counter = 0
-t = tstart
+t = inputdata(1,1)
 open(unit=5, file="nt.out")
 open(unit=6, file="ct.out")
 
@@ -149,6 +153,7 @@ do
   ! assign values to matrix dfdy
 !  dfdy(2:7,1) = beta(i-1)/ngen ** doesn't work due to beta(i-1) needed ** 
 !  dfdy(1,2:7) = lambda(i-1)  ** doesn't work to to lambda(i-1) needed **
+  pt = get_reactivity(t) 
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
     dfdy(i,1) = beta(i-1)/ngen
@@ -181,10 +186,8 @@ do
   end do
   
   LHS = ((1.0_real64/(gma*h))*identity - dfdy)
-
   ! build first right hand side matrix
   RHS1 = fyt + h*c1*dfdt
-  
   ! LU decomposition using LAPACK
   ! reference material for dgetrf can be found at: http://www.netlib.org/lapack/explore-html/d3/d6a/dgetrf_8f.html 
   call dgetrf(7, 7, LHS, 7, ipiv, info)
@@ -244,7 +247,7 @@ do
   counter = counter + 1
   t = t + h
     
-  if (t > tend) then
+  if (t > inputdata(n,1)) then
     exit
   else
     continue

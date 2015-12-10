@@ -2,16 +2,16 @@ module inputinterp
 use iso_fortran_env
 implicit none
 
-real(real64), protected :: inputdata(:,:) ! input array
+real(real64), protected :: inputdata(10,2) ! input array
 integer, protected      :: n              ! length of input array
 
 
 contains
   subroutine init_input_data(filename, n)
-    character, intent(in)      :: filename        ! name of input file
-    real(real64), allocatable  :: inputdata(:,:) ! input data from file
-    integer                    :: n               ! data length/ number of rows
-    integer                    :: i
+    character(100), intent(in)      :: filename        ! name of input file
+    real(real64), allocatable       :: inputdata(:,:)  ! input data from file
+    integer                         :: n               ! data length/ number of rows
+    integer                         :: i
     allocate(inputdata(n,2))
     open(unit=1, file=filename)
     do i = 1,n
