@@ -5,11 +5,7 @@ implicit none
 
 contains
 
-subroutine neuden(rtype, h0, filename, n)
-character(1), intent(in)         :: rtype           ! reactor type
-real(real64), intent(in)         :: h0              ! step size information (0 for auto step)
-character(100), intent(in)       :: filename        ! input filename
-integer, intent(in)              :: n               ! input length  
+subroutine neuden()
 integer                          :: i, j            ! counting variables
 integer                          :: counter         ! iteration counter
 integer                          :: info            ! llapack error variable
@@ -69,7 +65,7 @@ external dgetrf, dgetrs
  
 
 ! for thermal neutrons
-if (rtype == 't') then
+if (isThermal) then
   beta(1) = 0.000285_real64   ! beta of group 1
   beta(2) = 0.0015975_real64  ! beta of group 2
   beta(3) = 0.00141_real64    ! beta of group 3
@@ -86,7 +82,7 @@ if (rtype == 't') then
   lambda(6) = 3.87_real64     ! decay constant of group 6
   ngen      = 0.0005_real64   ! average neutron generation time
 ! for fast neutrons
-else if (rtype == 'f') then
+else
   beta(1) = 0.0001672_real64   ! beta of group 1     
   beta(2) = 0.001232_real64    ! beta of group 2
   beta(3) = 0.0009504_real64   ! beta of group 3
@@ -104,8 +100,6 @@ else if (rtype == 'f') then
   ngen      = 10.0E-7_real64   ! average neutron generation time  
 end if
 
-! initialize the input data
-call init_input_data(filename, n)
 ! initial values for nt and ct
 nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
@@ -114,7 +108,6 @@ Ct(3) = (beta(3)/(ngen*lambda(3)))*nt
 Ct(4) = (beta(4)/(ngen*lambda(4)))*nt 
 Ct(5) = (beta(5)/(ngen*lambda(5)))*nt 
 Ct(6) = (beta(6)/(ngen*lambda(6)))*nt 
-
 
 ! initial y values
 y0(1) = nt
@@ -125,15 +118,10 @@ y0(5) = Ct(4)
 y0(6) = Ct(5)
 y0(7) = Ct(6)
 
-!if (h0 == 0.0) then
-!  h = 0.001
-!else 
-h = h0
-!end if
-
 !havg = h
 counter = 0
 t = get_start_time()
+h = inputdata(1,1) - inputdata(2,1)
 open(unit=5, file="nt.out")
 open(unit=6, file="ct.out")
 
@@ -244,14 +232,13 @@ do
 !  print *, "havg = ", havg
   print *,"counter=", counter
   counter = counter + 1
-  t = t + h
-    
-  if (t > get_end_time()) then
-    exit
-  else
-    continue
-  end if
-
+  
+ ! TODO this likely needs updating for automatic step size 
+  t = inputdata(counter,1)
+  h = inputdata(counter-1,1) - inputdata(counter,1) ! this is readlly bad...
+  
+  if (t > get_end_time())  exit ! exit the do loop
+  
 end do
 
 close(5)

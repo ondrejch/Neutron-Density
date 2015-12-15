@@ -7,32 +7,33 @@ program main
 ! determine if step size is automatic
 ! determine reactor type
 use iso_fortran_env
+use inputinterp
 use neudens
 
 implicit none
-character(1)         :: rtype, Y_N     ! Reactor type and answer variable
-character(100)       :: filename       ! name of input file
-real(real64)         :: stepsize       ! time step size (h)
-integer              :: length         ! length of input file
 
+character(100)     :: filename     ! name of input file
+integer            :: nCLP         ! number of command line parameter
 
-write (*,10) "Please input reactor type ('f' for fast, 't' for thermal)"
-read *, rtype
+! Get the number of command line arguments
+nCLP = command_argument_count()
+if (nCLP.NE.1) call code_usage()   ! Code needs exactly one argument    
 
-write (*, 10) "PLease input filename:"
-read *, filename
+! Get file name
+call get_command_argument(1, filename) 
 
-write (*, 10) "Please enter the number of time steps used:"
-read *, length
+! Initialize input
+call init_input_data(filename)
 
-write (*,10) "Please input step size, input 0 for auto stepsize:"
-read *, stepsize
+! Run the calculation
+call neuden()
 
-
-! Format:
-10 format (/, A)
-
-call neuden(rtype, stepsize, filename, length)
-
+contains
+subroutine code_usage() 
+! Prints how to run the code
+print *, " This program does  !!TODO!! "
+print *, " It expects a single argument: the input file name"
+print *, " The format of the input file name is: !! TODO!!!"
+end subroutine code_usage
 
 end program main
