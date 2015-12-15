@@ -52,19 +52,19 @@ real(real64), parameter          :: b1 = 19.0_real64/9.0_real64
 real(real64), parameter          :: b2 = 0.5_real64
 real(real64), parameter          :: b3 = 25.0_real64/108.0_real64
 real(real64), parameter          :: b4 = 125.0_real64/108.0_real64
-real(real64), parameter          :: e1 = 17.0_real64/54.0_real64
-real(real64), parameter          :: e2 = 7.0_real64/36.0_real64
-real(real64), parameter          :: e3 = 0.0_real64
-real(real64), parameter          :: e4 = 125.0_real64/108.0_real64
+!real(real64), parameter          :: e1 = 17.0_real64/54.0_real64
+!real(real64), parameter          :: e2 = 7.0_real64/36.0_real64
+!real(real64), parameter          :: e3 = 0.0_real64
+!real(real64), parameter          :: e4 = 125.0_real64/108.0_real64
 real(real64), parameter          :: c1 = 0.5_real64
 real(real64), parameter          :: c2 = -1.5_real64
 real(real64), parameter          :: c3 = 2.42_real64
 real(real64), parameter          :: c4 = 0.116_real64
-real(real64), parameter          :: a2 = 1.0_real64
-real(real64), parameter          :: a3 = 0.6_real64
-real(real64), dimension(7)       :: err
-real(real64), parameter          :: eps = 10.0_real64**(-6)       ! accepted error value
-real(real64)                     :: hretry, hnext, havg, errmax
+!real(real64), parameter          :: a2 = 1.0_real64
+!real(real64), parameter          :: a3 = 0.6_real64
+!real(real64), dimension(7)       :: err
+!real(real64), parameter          :: eps = 10.0_real64**(-6)       ! accepted error value
+!real(real64)                     :: hretry, hnext, havg, errmax
 external dgetrf, dgetrs
  
 
@@ -106,7 +106,7 @@ end if
 
 ! initialize the input data
 call init_input_data(filename, n)
-
+write(6,*) "reactivity", get_reactivity(2.0_real64)
 ! initial values for nt and ct
 nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
@@ -134,7 +134,7 @@ h = h0
 
 !havg = h
 counter = 0
-t = inputdata(1,1)
+t = get_start_time()
 open(unit=5, file="nt.out")
 open(unit=6, file="ct.out")
 
@@ -243,11 +243,11 @@ do
 
 !  havg = (havg + h)/counter
 !  print *, "havg = ", havg
-!  print *, counter
+  print *,"counter=", counter
   counter = counter + 1
   t = t + h
     
-  if (t > inputdata(n,1)) then
+  if (t > get_end_time()) then
     exit
   else
     continue
