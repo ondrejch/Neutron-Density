@@ -9,7 +9,6 @@ integer, protected                   :: n              ! length of input array
 contains
   subroutine init_input_data(filename, length)
     character(100), intent(in)      :: filename        ! name of input file
-!    real(real64), allocatable       :: inputdata(:,:)  ! input data from file
     integer                         :: length               ! data length/ number of rows
     integer                         :: i
     n = length
@@ -24,7 +23,6 @@ contains
     real(real64), intent(in) :: t               ! desired time
     real(real64)             :: get_reactivity  ! reactivity at desired time
     integer                  :: i               ! counting variable
-    write(6,*) "n=",n
     do i = 1,n-1
       if (t >= inputdata(i,1) .and. t < inputdata(i+1,1)) then
         get_reactivity = inputdata(i,2)

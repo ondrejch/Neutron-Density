@@ -106,7 +106,6 @@ end if
 
 ! initialize the input data
 call init_input_data(filename, n)
-write(6,*) "reactivity", get_reactivity(2.0_real64)
 ! initial values for nt and ct
 nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
