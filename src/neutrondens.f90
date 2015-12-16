@@ -201,7 +201,7 @@ do  ! Main loop
   g4 = RHS4
 
 !--------------------------------------------------------------------------
-! automatic step size stuff
+! Automatic step size calculation
   err = e1*g1+e2*g2+e3*g3+e4*g4
   errmax = maxval(abs(err/yscale))
 !  print *, "errmax =", err
@@ -220,6 +220,10 @@ do  ! Main loop
      h = hnext
    end if
 !----------------------------------------------------------------------    
+
+! Check if the input file specifies a shorter time step
+  if (nearest_time_step(t) < h) h = nearest_time_step(t)
+
   write(50,'(ES15.3, ES15.6)') t, y(1)
   
   write(60, '(ES10.3)', advance='no') t

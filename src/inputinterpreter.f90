@@ -46,7 +46,7 @@ contains
     real(real64), intent(in) :: t               ! desired time
     real(real64)             :: get_reactivity  ! reactivity at desired time
     integer                  :: i               ! counting variable
-    do i = 1,nRecords-1
+    do i = 1, nRecords-1
       if (t >= inputdata(i,1) .and. t < inputdata(i+1,1)) then
         get_reactivity = inputdata(i,2)
         exit
@@ -58,6 +58,19 @@ contains
     end do 
   end function get_reactivity
 
+  function nearest_time_step(t)
+  ! Returns distance to the next time step specified in the input file
+    real(real64), intent(in) :: t                 ! current time
+    real(real64)             :: nearest_time_step ! distance to the next time step
+    integer                  :: i
+    do i = 1, nRecords-1
+       if (t >= inputdata(i,1) .and. t < inputdata(i+1,1)) then
+          nearest_time_step = inputdata(i+1,1) -t
+          exit
+       endif
+    end do
+  end function nearest_time_step
+            
   function get_start_time()
     real(real64) ::  get_start_time ! starting time 
     get_start_time = inputdata(1,1)
