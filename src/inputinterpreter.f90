@@ -5,7 +5,7 @@ module inputinterp
 use iso_fortran_env
 implicit none
 
-integer, parameter                   :: fDebug = 3      ! debugging level
+integer, parameter                   :: fDebug = 3     ! debugging level
 real(real64), protected, allocatable :: inputdata(:,:) ! input array
 integer, protected                   :: nRecords = -1  ! length of input array
 logical, protected                   :: isThermal      ! reactor type:
