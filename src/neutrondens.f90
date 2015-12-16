@@ -131,18 +131,16 @@ open(unit=60, file="ct.out")
 
 y = y0
 ! write initial values to file
-write(50,'(ES15.3, ES15.6)') t, y(1)
+write(50,51) t, y(1)
   
-write(60, '(ES10.3)', advance='no') t
-do i = 1,6
-  write(60, '(ES15.6)', advance='no') y(i+1)
-end do
+write(60, 61, advance='no') t, (y(i), i = 2,7)
 write(60,*)
 ! calculate y
 
 do  ! Main loop
  ! assign values to matrix dfdy
   pt = get_reactivity(t) 
+  
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
     dfdy(i,1) = beta(i-1)/ngen
@@ -155,21 +153,18 @@ do  ! Main loop
   end do
   
   ! Build vector fyt
-!!!  fyt = matmul(dfdy, y) !!!
   fyt = get_fyt(y,t)
   ! Calculate yscale
   yscale = abs(y) + abs(h * fyt) + 1E-30_real64
  
   ! create matrix dfdt
-  if (counter == 1) then
-    dfdt(1) = (y(1)/ngen)*(pt)
-  else
-    dfdt(1) = (y(1)/ngen)*(pt - ptprev)
-  end if  
+  dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
   dfdt(2:7) = 0.0_real64
       
-  ! start building left hand side matrix
-  
+  ! Add source S(t) to dfdt
+  dfdt(1) = dfdt(1) + get_source(t)
+
+  ! Start building left hand side matrix  
   ! Build identity matrix
   identity = 0.0_real64
   do i = 1,7
@@ -209,12 +204,11 @@ do  ! Main loop
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS4, 7, info)
   g4 = RHS4
 
-!--------------------------------------------------------------------------
 ! Automatic step size calculation
   err = e1*g1+e2*g2+e3*g3+e4*g4
   errmax = maxval(abs(err/yscale))
    if (errmax > eps) then
-     hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h) ! note that x^-a == 1/x^a
+     hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h) 
      h = hretry
      cycle
    else
@@ -225,24 +219,17 @@ do  ! Main loop
      endif
      h = hnext
    end if
-!----------------------------------------------------------------------    
 
 ! Check if the input file specifies a shorter time step
   if (nearest_time_step(t) < h) h = nearest_time_step(t)
 
-  write(50,'(ES15.3, ES15.6)') t, y(1)
-  
-  write(60, '(ES10.3)', advance='no') t
-  do i = 1,6
-    write(60, '(ES15.6)', advance='no') y(i+1)
-  end do
+  write(50,51) t, y(1)
+  write(60, 61, advance='no') t, (y(i), i=2,7)
   write(60,*)
-
 
   ! Calculate next y
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
-
-
+  
   havg = (havg + h)/counter
   counter = counter + 1
 
@@ -261,6 +248,8 @@ end do
 
 close(50)
 close(60)
+51 FORMAT (ES13.6, ES25.16)
+61 FORMAT (ES13.6,6ES25.16)
 
 end subroutine neuden
 
