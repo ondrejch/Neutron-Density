@@ -126,21 +126,15 @@ open(unit=60, file="ct.out")
 
 y = y0
 ! write initial values to file
-write(50,'(ES15.3, ES15.6)') t, y(1)
+write(50,51) t, y(1)
   
-write(60, '(ES10.3)', advance='no') t
-do i = 1,6
-  write(60, '(ES15.6)', advance='no') y(i+1)
-end do
+write(60, 61, advance='no') t, (y(i), i = 2,7)
 write(60,*)
 ! calculate y
 
 do  ! Main loop
  ! assign values to matrix dfdy
   pt = get_reactivity(t) 
- 
-  ! Add source S(t)
-  y(1) = y(1) + get_source(t)*h
   
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
@@ -160,11 +154,13 @@ do  ! Main loop
   yscale = abs(y) + abs(h * fyt) + 1E-30_real64
  
   ! create matrix dfdt
-  dfdt(1) = (y(1)/ngen)*(0.0_real64) ! for non-constant rho dfdt = (nt/ngen)(dpt/dt) ! FIXME !
+  dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
   dfdt(2:7) = 0.0_real64
       
-  ! start building left hand side matrix
-  
+  ! Add source S(t) to dfdt
+  dfdt(1) = dfdt(1) + get_source(t)
+
+  ! Start building left hand side matrix  
   ! Build identity matrix
   identity = 0.0_real64
   do i = 1,7
@@ -228,12 +224,8 @@ do  ! Main loop
 ! Check if the input file specifies a shorter time step
   if (nearest_time_step(t) < h) h = nearest_time_step(t)
 
-  write(50,'(ES15.3, ES15.6)') t, y(1)
-  
-  write(60, '(ES10.3)', advance='no') t
-  do i = 1,6
-    write(60, '(ES15.6)', advance='no') y(i+1)
-  end do
+  write(50,51) t, y(1)
+  write(60, 61, advance='no') t, (y(i), i=2,7)
   write(60,*)
 
   ! Calculate next y
@@ -254,6 +246,8 @@ end do
 
 close(50)
 close(60)
+51 FORMAT (ES13.6, ES25.16)
+61 FORMAT (ES13.6,6ES25.16)
 
 end subroutine neuden
 
