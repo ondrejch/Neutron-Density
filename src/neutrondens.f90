@@ -6,7 +6,7 @@ implicit none
 contains
 
 subroutine neuden()
-integer                          :: i, j            ! counting variables
+integer                          :: i               ! counting variables
 integer                          :: counter         ! iteration counter
 integer                          :: info            ! llapack error variable
 real(real64)                     :: h               ! step size
@@ -59,7 +59,7 @@ real(real64), parameter          :: c4 = 0.116_real64
 !real(real64), parameter          :: a2 = 1.0_real64
 !real(real64), parameter          :: a3 = 0.6_real64
 real(real64), dimension(7)       :: err
-real(real64), parameter          :: eps = 10.0_real64**(-6)       ! accepted error value
+real(real64), parameter          :: eps = 1E-2_real64       ! accepted error value
 real(real64)                     :: hretry, hnext, havg, errmax
 external dgetrf, dgetrs
  
@@ -97,7 +97,7 @@ else
   lambda(4) = 0.331_real64     ! decay constant of group 4
   lambda(5) = 1.26_real64      ! decay constant of group 5
   lambda(6) = 3.21_real64      ! decay constant of group 6
-  ngen      = 10.0E-7_real64   ! average neutron generation time  
+  ngen      = 1E-7_real64   ! average neutron generation time  
 end if
 
 ! initial values for nt and ct
@@ -118,10 +118,9 @@ y0(5) = Ct(4)
 y0(6) = Ct(5)
 y0(7) = Ct(6)
 
-!havg = h
 counter = 1
 t = get_start_time()
-h = inputdata(3,1) - inputdata(2,1)
+h = inputdata(2,1) - inputdata(1,1)
 open(unit=50, file="nt.out")
 open(unit=60, file="ct.out")
 
@@ -135,8 +134,8 @@ do i = 1,6
 end do
 write(60,*)
 ! calculate y
-do  
 
+do  ! Main loop
  ! assign values to matrix dfdy
   pt = get_reactivity(t) 
   dfdy(1,1) = (pt - beta(7))/ngen
@@ -154,19 +153,17 @@ do
   fyt = matmul(dfdy, y)
 
   ! Calculate yscale
-  yscale = abs(y) + abs(h * fyt) + 10.0_real64**(-30)
+  yscale = abs(y) + abs(h * fyt) + 1E-30_real64
  
   ! create matrix dfdt
-  dfdt(1) = (y(1)/ngen)*(0.0_real64) ! for non-constant rho dfdt = (nt/ngen)(dpt/dt)
+  dfdt(1) = (y(1)/ngen)*(0.0_real64) ! for non-constant rho dfdt = (nt/ngen)(dpt/dt) ! FIXME !
   dfdt(2:7) = 0.0_real64
       
   ! start building left hand side matrix
   
   ! Build identity matrix
+  identity = 0.0_real64
   do i = 1,7
-    do j = 1,7
-      identity(i,j) = 0.0_real64
-    end do
     identity(i,i) = 1.0_real64
   end do
   
@@ -204,25 +201,29 @@ do
   g4 = RHS4
 
 !--------------------------------------------------------------------------
-! automatic step size stuff
+! Automatic step size calculation
   err = e1*g1+e2*g2+e3*g3+e4*g4
   errmax = maxval(abs(err/yscale))
 !  print *, "errmax =", err
 !  print *, "yscale =", yscale
    if (errmax > eps) then
-!     the paper uses this retry but it returns an error:
-!     Floating-point exception - erroneous arithmetic operation
-
-!     hretry = max(0.9_real64*h*(errmax)**(-1.0_real64/3.0_real64),5.0_real64*h)
-     hretry = h*.1
+     hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h) ! note that x^-a == 1/x^a
      h = hretry
 !     print *, h
      cycle
    else
-     hnext = 1.5*h
+     if (errmax>0.1296) then
+       hnext = 0.9_real64 / errmax**0.25
+     else 
+       hnext = 1.5_real64*h
+     endif
      h = hnext
    end if
 !----------------------------------------------------------------------    
+
+! Check if the input file specifies a shorter time step
+  if (nearest_time_step(t) < h) h = nearest_time_step(t)
+
   write(50,'(ES15.3, ES15.6)') t, y(1)
   
   write(60, '(ES10.3)', advance='no') t
@@ -246,8 +247,6 @@ do
   end if
   ! find next time value  
   t = t + h
-!  h = inputdata(counter,1) - inputdata(counter-1,1) 
-  
   
 end do
 
