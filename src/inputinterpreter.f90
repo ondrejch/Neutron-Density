@@ -8,7 +8,7 @@ implicit none
 integer, parameter                   :: fDebug = 3     ! debugging level
 real(real64), protected, allocatable :: inputdata(:,:) ! input array
 integer, protected                   :: nRecords = -1  ! length of input array
-logical, protected                   :: isThermal      ! reactor type:
+logical, protected                   :: isThermal      ! reactor type
 
 contains
   subroutine init_input_data(filename)
@@ -34,7 +34,7 @@ contains
     if (nRecords<2) stop "Not enough input data, bailing out!"
     ! Now  read n records
     rewind(10)
-    read(10,*) ! skip[ the first line
+    read(10,*) ! skip the first line
     allocate(inputdata(nRecords,2))
     do i = 1, nRecords
       read(10, *) inputdata(i,1), inputdata(i,2)
