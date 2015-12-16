@@ -5,18 +5,14 @@ implicit none
 
 contains
 
-subroutine neuden(rtype, h0, filename, n)
-character(1), intent(in)         :: rtype           ! reactor type
-real(real64), intent(in)         :: h0              ! step size information (0 for auto step)
-character(100), intent(in)       :: filename        ! input filename
-integer, intent(in)              :: n               ! input length  
+subroutine neuden()
 integer                          :: i, j            ! counting variables
 integer                          :: counter         ! iteration counter
 integer                          :: info            ! llapack error variable
 real(real64)                     :: h               ! step size
 real(real64), dimension(7)       :: y               ! matrix containing n(t) and c(t)
 real(real64), dimension(7)       :: y0              ! matrix containing initial values for n(t) and c(t)
-real(real64), dimension(7)       :: yscale          ! error scale value
+real(real64), dimension(7)       :: yscale          ! truncation error scaling value
 real(real64), dimension(7)       :: g1              ! variable of first equation
 real(real64), dimension(7)       :: g2              ! variable of second equation
 real(real64), dimension(7)       :: g3              ! variable of fourth equation
@@ -52,24 +48,24 @@ real(real64), parameter          :: b1 = 19.0_real64/9.0_real64
 real(real64), parameter          :: b2 = 0.5_real64
 real(real64), parameter          :: b3 = 25.0_real64/108.0_real64
 real(real64), parameter          :: b4 = 125.0_real64/108.0_real64
-!real(real64), parameter          :: e1 = 17.0_real64/54.0_real64
-!real(real64), parameter          :: e2 = 7.0_real64/36.0_real64
-!real(real64), parameter          :: e3 = 0.0_real64
-!real(real64), parameter          :: e4 = 125.0_real64/108.0_real64
+real(real64), parameter          :: e1 = 17.0_real64/54.0_real64
+real(real64), parameter          :: e2 = 7.0_real64/36.0_real64
+real(real64), parameter          :: e3 = 0.0_real64
+real(real64), parameter          :: e4 = 125.0_real64/108.0_real64
 real(real64), parameter          :: c1 = 0.5_real64
 real(real64), parameter          :: c2 = -1.5_real64
 real(real64), parameter          :: c3 = 2.42_real64
 real(real64), parameter          :: c4 = 0.116_real64
 !real(real64), parameter          :: a2 = 1.0_real64
 !real(real64), parameter          :: a3 = 0.6_real64
-!real(real64), dimension(7)       :: err
-!real(real64), parameter          :: eps = 10.0_real64**(-6)       ! accepted error value
-!real(real64)                     :: hretry, hnext, havg, errmax
+real(real64), dimension(7)       :: err
+real(real64), parameter          :: eps = 10.0_real64**(-6)       ! accepted error value
+real(real64)                     :: hretry, hnext, havg, errmax
 external dgetrf, dgetrs
  
 
 ! for thermal neutrons
-if (rtype == 't') then
+if (isThermal) then
   beta(1) = 0.000285_real64   ! beta of group 1
   beta(2) = 0.0015975_real64  ! beta of group 2
   beta(3) = 0.00141_real64    ! beta of group 3
@@ -86,7 +82,7 @@ if (rtype == 't') then
   lambda(6) = 3.87_real64     ! decay constant of group 6
   ngen      = 0.0005_real64   ! average neutron generation time
 ! for fast neutrons
-else if (rtype == 'f') then
+else
   beta(1) = 0.0001672_real64   ! beta of group 1     
   beta(2) = 0.001232_real64    ! beta of group 2
   beta(3) = 0.0009504_real64   ! beta of group 3
@@ -104,8 +100,6 @@ else if (rtype == 'f') then
   ngen      = 10.0E-7_real64   ! average neutron generation time  
 end if
 
-! initialize the input data
-call init_input_data(filename, n)
 ! initial values for nt and ct
 nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
@@ -114,7 +108,6 @@ Ct(3) = (beta(3)/(ngen*lambda(3)))*nt
 Ct(4) = (beta(4)/(ngen*lambda(4)))*nt 
 Ct(5) = (beta(5)/(ngen*lambda(5)))*nt 
 Ct(6) = (beta(6)/(ngen*lambda(6)))*nt 
-
 
 ! initial y values
 y0(1) = nt
@@ -125,33 +118,26 @@ y0(5) = Ct(4)
 y0(6) = Ct(5)
 y0(7) = Ct(6)
 
-!if (h0 == 0.0) then
-!  h = 0.001
-!else 
-h = h0
-!end if
-
 !havg = h
-counter = 0
+counter = 1
 t = get_start_time()
-open(unit=5, file="nt.out")
-open(unit=6, file="ct.out")
+h = inputdata(3,1) - inputdata(2,1)
+open(unit=50, file="nt.out")
+open(unit=60, file="ct.out")
 
 y = y0
-
-do  
-  ! Calculate y   
-  write(5,'(ES15.3, ES15.6)') t, y(1)
+! write initial values to file
+write(50,'(ES15.3, ES15.6)') t, y(1)
   
-  write(6, '(ES10.3)', advance='no') t
-  do i = 1,6
-    write(6, '(ES15.6)', advance='no') y(i+1)
-  end do
-  write(6,*)
+write(60, '(ES10.3)', advance='no') t
+do i = 1,6
+  write(60, '(ES15.6)', advance='no') y(i+1)
+end do
+write(60,*)
+! calculate y
+do  
 
-  ! assign values to matrix dfdy
-!  dfdy(2:7,1) = beta(i-1)/ngen ** doesn't work due to beta(i-1) needed ** 
-!  dfdy(1,2:7) = lambda(i-1)  ** doesn't work to to lambda(i-1) needed **
+ ! assign values to matrix dfdy
   pt = get_reactivity(t) 
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
@@ -171,7 +157,7 @@ do
   yscale = abs(y) + abs(h * fyt) + 10.0_real64**(-30)
  
   ! create matrix dfdt
-  dfdt(1) = (nt/ngen)*(0.0_real64) ! for non-constant rho dfdt = (nt/ngen)(dpt/dt)
+  dfdt(1) = (y(1)/ngen)*(0.0_real64) ! for non-constant rho dfdt = (nt/ngen)(dpt/dt)
   dfdt(2:7) = 0.0_real64
       
   ! start building left hand side matrix
@@ -217,45 +203,56 @@ do
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS4, 7, info)
   g4 = RHS4
 
-!  if (h0 == 0.0) then
-!    err = e1*g1+e2*g2+e3*g3+e4*g4
-!    errmax = max(err(1)/yscale(1), err(2)/yscale(2), err(3)/yscale(3),&
-!           & err(4)/yscale(4), err(5)/yscale(5), err(6)/yscale(6), err(7)/yscale(7))
-!    if (errmax > eps) then
-!      hretry = max(0.9*h*(errmax)**(-1.0/3.0), 0.0,5.0*h)
-!      h = hretry
-!      cycle
-!    else if (errmax > 0.1296) then
-!      hnext = 0.9*h*(errmax)**(-0.25)
-!      h = hnext
-!    else
-!      hnext = 1.5*h
-!      h = hnext
-!    end if
-!  end if    
-    
+!--------------------------------------------------------------------------
+! automatic step size stuff
+  err = e1*g1+e2*g2+e3*g3+e4*g4
+  errmax = maxval(abs(err/yscale))
+!  print *, "errmax =", err
+!  print *, "yscale =", yscale
+   if (errmax > eps) then
+!     the paper uses this retry but it returns an error:
+!     Floating-point exception - erroneous arithmetic operation
+
+!     hretry = max(0.9_real64*h*(errmax)**(-1.0_real64/3.0_real64),5.0_real64*h)
+     hretry = h*.1
+     h = hretry
+!     print *, h
+     cycle
+   else
+     hnext = 1.5*h
+     h = hnext
+   end if
+!----------------------------------------------------------------------    
+  write(50,'(ES15.3, ES15.6)') t, y(1)
+  
+  write(60, '(ES10.3)', advance='no') t
+  do i = 1,6
+    write(60, '(ES15.6)', advance='no') y(i+1)
+  end do
+  write(60,*)
 
 
   ! Calculate next y
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
 
 
-!  havg = (havg + h)/counter
-!  print *, "havg = ", havg
-  print *,"counter=", counter
+  havg = (havg + h)/counter
+!  print *," counter =", counter, "reactivity =", get_reactivity(t), "step = ", h
   counter = counter + 1
-  t = t + h
-    
-  if (t > get_end_time()) then
-    exit
-  else
-    continue
-  end if
 
+  if (t >= get_end_time()) then
+    write(6, *)"havg = ", havg 
+    exit ! exit the do loop
+  end if
+  ! find next time value  
+  t = t + h
+!  h = inputdata(counter,1) - inputdata(counter-1,1) 
+  
+  
 end do
 
-close(5)
-close(6)
+close(50)
+close(60)
 
 end subroutine neuden
 
