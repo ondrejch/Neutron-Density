@@ -138,6 +138,10 @@ write(60,*)
 do  ! Main loop
  ! assign values to matrix dfdy
   pt = get_reactivity(t) 
+ 
+  ! Add source S(t)
+  y(1) = y(1) + get_source(t)*h
+  
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
     dfdy(i,1) = beta(i-1)/ngen
@@ -232,11 +236,9 @@ do  ! Main loop
   end do
   write(60,*)
 
-
   ! Calculate next y
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
-
-
+  
   havg = (havg + h)/counter
 !  print *," counter =", counter, "reactivity =", get_reactivity(t), "step = ", h
   counter = counter + 1

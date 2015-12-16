@@ -23,7 +23,7 @@ if (nCLP.NE.1) call code_usage()   ! Code needs exactly one argument
 call get_command_argument(1, filename) 
 
 ! Initialize input
-call init_input_data(filename)
+call init_input_data(TRIM(filename))
 
 ! Run the calculation
 call neuden()
