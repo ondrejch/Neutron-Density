@@ -1,6 +1,9 @@
 module neudens
+! TODO needs comments
+!
 use iso_fortran_env
 use inputinterp
+use feedback
 implicit none
 real(real64) :: beta(7)      ! beta values for each decay group
 real(real64) :: lambda(6)    ! half life constants
@@ -98,9 +101,12 @@ write(60, 61, advance='no') t, (y(i), i = 2,7)
 write(60,*)
 
 do  ! Main loop
- ! assign values to matrix dfdy
   pt = get_reactivity(t) 
   
+  ! get temperature feedback - off by default
+  ! pt = pt + get_feedback(y(1),h)
+  
+  ! assign values to matrix dfdy
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
     dfdy(i,1) = beta(i-1)/ngen
