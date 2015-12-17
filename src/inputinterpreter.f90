@@ -48,6 +48,7 @@ contains
       if (ioerr.ne.0) stop "Input data file reading error, bailing out!"
       read(linebuffer, *,iostat=ioerr) inputdata(i,1), inputdata(i,2), inputdata(i,3)
       if (fDebug>5) print *, "[DEBUG] input data: ", i, inputdata(i,1), inputdata(i,2), inputdata(i,3)
+!      inputdata(i,3) = inputdata(i,3)*1E5 ! source strength scaling for development purposes
     end do
   end subroutine init_input_data
 
