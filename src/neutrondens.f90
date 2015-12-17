@@ -8,9 +8,8 @@ real(real64) :: pt           ! reactivity value
 real(real64) :: ngen         ! neutron generation time
 
 contains
-
 subroutine neuden()
-integer                 :: i                    ! counting variables
+integer                 :: i, j                 ! counting variables
 integer                 :: counter              ! iteration counter
 integer                 :: info                 ! llapack error variable
 real(real64)            :: h                    ! step size
@@ -31,7 +30,6 @@ real(real64)            :: nt                   ! neutron density
 real(real64)            :: ptprev               ! reactivity from the previous iteration
 real(real64)            :: t                    ! time
 real(real64)            :: Ct(6)                ! delayed neutron precursers
-real(real64)            :: identity(7,7)        ! identity matrix 
 real(real64)            :: LHS(7,7)             ! left-hand-side of all linear equations
 real(real64)            :: dfdy(7,7)
 real(real64)            :: ipiv(7)              ! pivot vector used in llapack subroutines
@@ -65,46 +63,10 @@ real(real64)            :: hretry
 real(real64)            :: hnext
 real(real64)            :: havg
 real(real64)            :: errmax
-
+real(real64), parameter :: identity(7,7) = RESHAPE([(1.0_real64,(0.0_real64,i=1,7),j=1,7),1.0_real64],[7,7]) ! identity matrix 
 external dgetrf, dgetrs
- 
 
-! for thermal neutrons
-if (isThermal) then
-  beta(1) = 0.000285_real64   ! beta of group 1
-  beta(2) = 0.0015975_real64  ! beta of group 2
-  beta(3) = 0.00141_real64    ! beta of group 3
-  beta(4) = 0.0030525_real64  ! beta of group 4
-  beta(5) = 0.00096_real64    ! beta of group 5
-  beta(6) = 0.000195_real64   ! beta of group 6
-  beta(7) = 0.0075_real64     ! Total Beta
-
-  lambda(1) = 0.0127_real64   ! decay constant of group 1
-  lambda(2) = 0.0317_real64   ! decay constant of group 2
-  lambda(3) = 0.115_real64    ! decay constant of group 3
-  lambda(4) = 0.311_real64    ! decay constant of group 4
-  lambda(5) = 1.4_real64      ! decay constant of group 5
-  lambda(6) = 3.87_real64     ! decay constant of group 6
-  ngen      = 0.0005_real64   ! average neutron generation time
-! for fast neutrons
-else
-  beta(1) = 0.0001672_real64   ! beta of group 1     
-  beta(2) = 0.001232_real64    ! beta of group 2
-  beta(3) = 0.0009504_real64   ! beta of group 3
-  beta(4) = 0.001443_real64    ! beta of group 4
-  beta(5) = 0.0004534_real64   ! beta of group 5
-  beta(6) = 0.000154_real64    ! beta of group 6
-  beta(7) = 0.0044_real64      ! Total Beta
-
-  lambda(1) = 0.0129_real64    ! decay constant of group 1
-  lambda(2) = 0.0311_real64    ! decay constant of gourp 2
-  lambda(3) = 0.134_real64     ! decay constant of group 3
-  lambda(4) = 0.331_real64     ! decay constant of group 4
-  lambda(5) = 1.26_real64      ! decay constant of group 5
-  lambda(6) = 3.21_real64      ! decay constant of group 6
-  ngen      = 1E-7_real64      ! average neutron generation time  
-end if
-
+call init_delayed_consts()
 ! initial values for nt and ct
 nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
@@ -132,10 +94,8 @@ open(unit=60, file="ct.out")
 y = y0
 ! write initial values to file
 write(50,51) t, y(1)
-  
 write(60, 61, advance='no') t, (y(i), i = 2,7)
 write(60,*)
-! calculate y
 
 do  ! Main loop
  ! assign values to matrix dfdy
@@ -163,13 +123,6 @@ do  ! Main loop
       
   ! Add source S(t) to dfdt
   dfdt(1) = dfdt(1) + get_source(t)
-
-  ! Start building left hand side matrix  
-  ! Build identity matrix
-  identity = 0.0_real64
-  do i = 1,7
-    identity(i,i) = 1.0_real64
-  end do
   
   LHS = ((1.0_real64/(gma*h))*identity - dfdy)
   ! build first right hand side matrix
@@ -243,7 +196,6 @@ do  ! Main loop
 
   ! find next time value  
   t = t + h
-  
 end do
 
 close(50)
@@ -275,6 +227,43 @@ function get_fyt(y_in,t_in)
   get_fyt = matmul(df,y_in)
 end function get_fyt
 
+subroutine init_delayed_consts()
+! Initializes constants of delayed neutrons
+! TODO: This should be generalized in future to support user input
+!
+if (isThermal) then ! for thermal neutrons
+  beta(1) = 0.000285_real64   ! beta of group 1
+  beta(2) = 0.0015975_real64  ! beta of group 2
+  beta(3) = 0.00141_real64    ! beta of group 3
+  beta(4) = 0.0030525_real64  ! beta of group 4
+  beta(5) = 0.00096_real64    ! beta of group 5
+  beta(6) = 0.000195_real64   ! beta of group 6
+  beta(7) = 0.0075_real64     ! Total Beta
 
+  lambda(1) = 0.0127_real64   ! decay constant of group 1
+  lambda(2) = 0.0317_real64   ! decay constant of group 2
+  lambda(3) = 0.115_real64    ! decay constant of group 3
+  lambda(4) = 0.311_real64    ! decay constant of group 4
+  lambda(5) = 1.4_real64      ! decay constant of group 5
+  lambda(6) = 3.87_real64     ! decay constant of group 6
+  ngen      = 0.0005_real64   ! average neutron generation time
+else ! for fast neutrons
+  beta(1) = 0.0001672_real64   ! beta of group 1     
+  beta(2) = 0.001232_real64    ! beta of group 2
+  beta(3) = 0.0009504_real64   ! beta of group 3
+  beta(4) = 0.001443_real64    ! beta of group 4
+  beta(5) = 0.0004534_real64   ! beta of group 5
+  beta(6) = 0.000154_real64    ! beta of group 6
+  beta(7) = 0.0044_real64      ! Total Beta
+
+  lambda(1) = 0.0129_real64    ! decay constant of group 1
+  lambda(2) = 0.0311_real64    ! decay constant of gourp 2
+  lambda(3) = 0.134_real64     ! decay constant of group 3
+  lambda(4) = 0.331_real64     ! decay constant of group 4
+  lambda(5) = 1.26_real64      ! decay constant of group 5
+  lambda(6) = 3.21_real64      ! decay constant of group 6
+  ngen      = 1E-7_real64      ! average neutron generation time  
+end if
+end subroutine init_delayed_consts
 
 end module neudens
