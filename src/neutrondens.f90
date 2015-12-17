@@ -15,7 +15,8 @@ subroutine neuden()
 integer                 :: i, j                 ! counting variables
 integer                 :: counter              ! iteration counter
 integer                 :: info                 ! llapack error variable
-real(real64)            :: h                    ! step size
+real(real64)            :: h                    ! time step size
+real(real64)            :: nearest_h            ! time step size to next input data
 real(real64)            :: y(7)                 ! matrix containing n(t) and c(t)
 real(real64)            :: y0(7)                ! matrix containing initial values for n(t) and c(t)
 real(real64)            :: yscale(7)            ! truncation error scaling value
@@ -163,13 +164,15 @@ do  ! Main loop
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS4, 7, info)
   g4 = RHS4
 
+! Shortest time step we should take
+  nearest_h = nearest_time_step(t)
 ! Automatic step size calculation
   err = e1*g1+e2*g2+e3*g3+e4*g4
   errmax = maxval(abs(err/yscale))
    if (errmax > eps) then
      hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h) 
      h = hretry
-     cycle
+     if (h < nearest_h) cycle
    else
      if (errmax>0.1296) then
        hnext = 0.9_real64 / errmax**0.25
@@ -178,9 +181,8 @@ do  ! Main loop
      endif
      h = hnext
    end if
-
 ! Check if the input file specifies a shorter time step
-  if (nearest_time_step(t) < h) h = nearest_time_step(t)
+  if (nearest_h < h) h = nearest_h
 
   write(50,51) t, y(1)
   write(60, 61, advance='no') t, (y(i), i=2,7)
