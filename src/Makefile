@@ -4,7 +4,7 @@
 #
 EXEDIR     = ../bin
 EXECUTABLE = $(EXEDIR)//main.exe
-SOURCES    = inputinterpreter.f90  neutrondens.f90 main.f90
+SOURCES    = feedback.f90 inputinterpreter.f90  neutrondens.f90 main.f90
 
 OBJECTS    = $(SOURCES:.f90=.o)
 LDFLAGS    = -llapack
