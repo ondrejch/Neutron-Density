@@ -16,7 +16,7 @@ logical, protected                   :: isThermal      ! reactor type
 
 contains
   subroutine init_input_data(filename)
-  ! Reads in input data file
+  ! Reads in the input data file
     character(*), intent(in) :: filename    ! name of input file
     character(256)           :: linebuffer  ! buffer to read in data
     integer                  :: i, ioerr
