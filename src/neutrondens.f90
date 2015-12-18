@@ -75,7 +75,7 @@ real(real64), parameter :: a2 = 1.0_real64
 real(real64), parameter :: a3 = 0.6_real64
 real(real64)            :: err(7)
 real(real64), parameter :: eps = 1E-6_real64       ! accepted error value
-real(real64)            :: hretry                  ! recalculated time step size
+!real(real64)            :: hretry                  ! recalculated time step size
 real(real64)            :: hnext                   ! next time step size if small error
 real(real64)            :: havg                    ! average time step size
 real(real64)            :: errmax                  ! max error in y
@@ -102,7 +102,7 @@ y0(5) = Ct(4)
 y0(6) = Ct(5)
 y0(7) = Ct(6)
 
-counter = 1
+counter = 0
 t = get_start_time()                 ! store the starting time
 h = inputdata(2,1) - inputdata(1,1)  ! find the first time step size
 
@@ -112,9 +112,9 @@ open(unit=60, file="ct.out")
 
 y = y0
 ! write initial values to file
-write(50,51) t, y(1)
-write(60, 61, advance='no') t, (y(i), i = 2,7)
-write(60,*)
+!write(50,51) t, y(1)
+!write(60, 61, advance='no') t, (y(i), i = 2,7)
+!write(60,*)
 
 do  ! Main loop
   pt = get_reactivity(t) ! reactivity at current time 
@@ -137,7 +137,8 @@ do  ! Main loop
   ! build vector fyt
   fyt = get_fyt(y,t)
   ! calculate yscale
-  yscale = norm2(y) + norm2(h * fyt) + 1E-30_real64
+!  yscale = norm2(y) + norm2(h * fyt) + 1E-30_real64
+  yscale = abs(y) + abs(h * fyt) + 1E-30_real64
  
   ! build matrix dfdt
   dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
@@ -183,19 +184,37 @@ do  ! Main loop
   nearest_h = nearest_time_step(t)
 ! Automatic step size calculation
   err = e1*g1+e2*g2+e3*g3+e4*g4    ! calculate error values
-  errmax = maxval(abs(err/yscale)) ! calculate max error including truncation
-   if (errmax > eps) then
-     hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h)  ! time step size to retry
-     h = hretry
+  errmax = 0.0
+  do i = 1, 7
+    errmax = max(errmax, abs(err(i)/yscale(i))) ! calculate max error including truncation
+  end do
+  errmax = errmax/eps
+  if (errmax < 1.0) then
+    if (errmax > 0.1296_real64) then
+      hnext = 0.9_real64*h/(errmax**0.25)
+    else
+      hnext = 1.5_real64*h
+    end if
+  else
+    hnext = 0.9_real64*h/(errmax**(1.0/3.0))
+    h = max(abs(hnext), 0.5_real64*abs(h))
+  end if
+          
+
+!   if (errmax > eps) then
+!     hretry = max((0.9_real64*h)/(errmax**(1.0/3.0)),(0.5_real64*h))  ! time step size to retry
+!     hretry = max((0.9_real64*h*errmax**(1.0/3.0)),(0.5_real64*h))  ! time step size to retry
+!     h = hretry
+!     cycle
 !     if (h < nearest_h) cycle ! Note: once we start to cycle the code breaks
-   else
-     if (errmax>0.1296) then
-       hnext = 0.9_real64 / errmax**0.25
-     else 
-       hnext = 1.5_real64*h
-     endif
-     h = hnext
-   end if
+!   else
+!     if (errmax>0.1296) then
+!       hnext = 0.9_real64 / errmax**0.25
+!     else 
+!       hnext = 1.5_real64*h
+!     endif
+!     h = hnext
+!   end if
 
 ! Check if the input file specifies a shorter time step
   if (nearest_h < h) h = nearest_h
@@ -209,17 +228,18 @@ do  ! Main loop
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
 
 ! calculate average time step size  
-  havg = (havg + h)/counter
   counter = counter + 1
 
   if (t >= get_end_time()) then
-    write(6, *)"havg = ", havg 
     exit ! exit main do loop
   end if
   
 ! find next time value  
   t = t + h
 end do
+
+havg = (get_end_time()-get_start_time())/(counter)
+write(6, *)"havg = ", havg 
 
 ! close files
 close(50)
