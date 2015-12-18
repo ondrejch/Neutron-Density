@@ -74,7 +74,7 @@ real(real64), parameter :: c4 = 0.116_real64
 real(real64), parameter :: a2 = 1.0_real64
 real(real64), parameter :: a3 = 0.6_real64
 real(real64)            :: err(7)
-real(real64), parameter :: eps = 1E-2_real64       ! accepted error value
+real(real64), parameter :: eps = 1E-6_real64       ! accepted error value
 real(real64)            :: hretry                  ! recalculated time step size
 real(real64)            :: hnext                   ! next time step size if small error
 real(real64)            :: havg                    ! average time step size
@@ -137,7 +137,7 @@ do  ! Main loop
   ! build vector fyt
   fyt = get_fyt(y,t)
   ! calculate yscale
-  yscale = abs(y) + abs(h * fyt) + 1E-30_real64
+  yscale = norm2(y) + norm2(h * fyt) + 1E-30_real64
  
   ! build matrix dfdt
   dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
@@ -187,7 +187,7 @@ do  ! Main loop
    if (errmax > eps) then
      hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h)  ! time step size to retry
      h = hretry
-     if (h < nearest_h) cycle
+!     if (h < nearest_h) cycle ! Note: once we start to cycle the code breaks
    else
      if (errmax>0.1296) then
        hnext = 0.9_real64 / errmax**0.25
