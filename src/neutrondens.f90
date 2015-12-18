@@ -1,4 +1,9 @@
 module neudens
+!----------------------- module neudens -----------------------
+! Module responsible for calculating the neutron density and  |
+! delayed neutron precursor concentrations given reactivity   |
+! and time                                                    |
+!--------------------------------------------------------------
 ! TODO needs comments
 !
 use iso_fortran_env
@@ -15,7 +20,8 @@ subroutine neuden()
 integer                 :: i, j                 ! counting variables
 integer                 :: counter              ! iteration counter
 integer                 :: info                 ! llapack error variable
-real(real64)            :: h                    ! step size
+real(real64)            :: h                    ! time step size
+real(real64)            :: nearest_h            ! time step size to next input data
 real(real64)            :: y(7)                 ! matrix containing n(t) and c(t)
 real(real64)            :: y0(7)                ! matrix containing initial values for n(t) and c(t)
 real(real64)            :: yscale(7)            ! truncation error scaling value
@@ -23,18 +29,17 @@ real(real64)            :: g1(7)                ! variable of first equation
 real(real64)            :: g2(7)                ! variable of second equation
 real(real64)            :: g3(7)                ! variable of fourth equation
 real(real64)            :: g4(7)                ! variable of fifth equation
-real(real64)            :: dfdt(7)         
-real(real64)            :: fyt(7)
+real(real64)            :: dfdt(7)              !
+real(real64)            :: fyt(7)               ! 
 real(real64)            :: RHS1(7)              ! right-hand-side of equation 1
 real(real64)            :: RHS2(7)              ! right-hand-side of equation 2
 real(real64)            :: RHS3(7)              ! right-hand-side of equation 3
 real(real64)            :: RHS4(7)              ! right-hand-side of equation 4
 real(real64)            :: nt                   ! neutron density
-real(real64)            :: ptprev               ! reactivity from the previous iteration
 real(real64)            :: t                    ! time
 real(real64)            :: Ct(6)                ! delayed neutron precursers
 real(real64)            :: LHS(7,7)             ! left-hand-side of all linear equations
-real(real64)            :: dfdy(7,7)
+real(real64)            :: dfdy(7,7)            !
 real(real64)            :: ipiv(7)              ! pivot vector used in llapack subroutines
 real(real64), parameter :: gma = 0.5_real64        
 real(real64), parameter :: a21 = 2.0_real64
@@ -62,13 +67,14 @@ real(real64), parameter :: a2 = 1.0_real64
 real(real64), parameter :: a3 = 0.6_real64
 real(real64)            :: err(7)
 real(real64), parameter :: eps = 1E-2_real64       ! accepted error value
-real(real64)            :: hretry
-real(real64)            :: hnext
-real(real64)            :: havg
-real(real64)            :: errmax
+real(real64)            :: hretry                  ! recalculated time step size
+real(real64)            :: hnext                   ! next time step size if small error
+real(real64)            :: havg                    ! average time step size
+real(real64)            :: errmax                  ! max error in y
 real(real64), parameter :: identity(7,7) = RESHAPE([(1.0_real64,(0.0_real64,i=1,7),j=1,7),1.0_real64],[7,7]) ! identity matrix 
 external dgetrf, dgetrs
 
+! initalize the delayed neutron constants
 call init_delayed_consts()
 ! initial values for nt and ct
 nt = 1.0_real64
@@ -89,9 +95,11 @@ y0(6) = Ct(5)
 y0(7) = Ct(6)
 
 counter = 1
-t = get_start_time()
-h = inputdata(2,1) - inputdata(1,1)
-open(unit=50, file="nt.out")
+t = get_start_time()                 ! store the starting time
+h = inputdata(2,1) - inputdata(1,1)  ! find the first time step size
+
+! open files for writing
+open(unit=50, file="nt.out") 
 open(unit=60, file="ct.out")
 
 y = y0
@@ -101,7 +109,7 @@ write(60, 61, advance='no') t, (y(i), i = 2,7)
 write(60,*)
 
 do  ! Main loop
-  pt = get_reactivity(t) 
+  pt = get_reactivity(t) ! reactivity at current time 
   
   ! get temperature feedback - off by default
   ! pt = pt + get_feedback(y(1),h)
@@ -118,16 +126,16 @@ do  ! Main loop
     dfdy(i,i) = -lambda(i-1)
   end do
   
-  ! Build vector fyt
+  ! build vector fyt
   fyt = get_fyt(y,t)
-  ! Calculate yscale
+  ! calculate yscale
   yscale = abs(y) + abs(h * fyt) + 1E-30_real64
  
-  ! create matrix dfdt
+  ! build matrix dfdt
   dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
   dfdt(2:7) = 0.0_real64
       
-  ! Add source S(t) to dfdt
+  ! add source S(t) to dfdt
   dfdt(1) = dfdt(1) + get_source(t)
   
   LHS = ((1.0_real64/(gma*h))*identity - dfdy)
@@ -139,37 +147,39 @@ do  ! Main loop
   if (info > 0) stop "Matrix is singular"
   if (info < 0) stop "Illegal value"
   
-  ! Solve for g1 using LAPACK
+  ! solve for g1 using LAPACK
   ! reference material for dgetrs can be found at: http://www.netlib.org/lapack/explore-html/d6/d49/dgetrs_8f.html
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS1, 7, info)
   if (info /= 0) stop "Solution of linear system failed"
   g1 = RHS1 
   
-  ! Solve for g2
+  ! solve for g2
   fyt = get_fyt((y + a21*g1), (t + a2*h))
   RHS2 = fyt + h*c2*dfdt + (c21*g1)/h
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS2, 7, info)
   g2 = RHS2
 
-  ! Solve for g3
+  ! solve for g3
   fyt = get_fyt((y + a31*g1 + a32*g2), (t + a3*h))
   RHS3 = fyt + h*c3*dfdt + (c31*g1 + c32*g2)/h
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS3, 7, info)
   g3 = RHS3
 
-  ! Solve for g4
+  ! solve for g4
   fyt = get_fyt((y + a31*g1 + a32*g2), (t + a3*h))
   RHS4 = fyt + h*c4*dfdt + (c41*g1 + c42* g2 + c43*g3)/h
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS4, 7, info)
   g4 = RHS4
 
+! shortest time step we should take
+  nearest_h = nearest_time_step(t)
 ! Automatic step size calculation
-  err = e1*g1+e2*g2+e3*g3+e4*g4
-  errmax = maxval(abs(err/yscale))
+  err = e1*g1+e2*g2+e3*g3+e4*g4    ! calculate error values
+  errmax = maxval(abs(err/yscale)) ! calculate max error including truncation
    if (errmax > eps) then
-     hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h) 
+     hretry = max(0.9_real64*h/(errmax**(1.0/3.0)),0.5_real64*h)  ! time step size to retry
      h = hretry
-     cycle
+     if (h < nearest_h) cycle
    else
      if (errmax>0.1296) then
        hnext = 0.9_real64 / errmax**0.25
@@ -180,15 +190,17 @@ do  ! Main loop
    end if
 
 ! Check if the input file specifies a shorter time step
-  if (nearest_time_step(t) < h) h = nearest_time_step(t)
+  if (nearest_h < h) h = nearest_h
 
+! write current values to file
   write(50,51) t, y(1)
   write(60, 61, advance='no') t, (y(i), i=2,7)
   write(60,*)
 
-  ! Calculate next y
+! Calculate next y
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
-  
+
+! calculate average time step size  
   havg = (havg + h)/counter
   counter = counter + 1
 
@@ -197,22 +209,25 @@ do  ! Main loop
     exit ! exit main do loop
   end if
   
-  ! save previous reactivity
-  ptprev = get_reactivity(t)
-
-  ! find next time value  
+! find next time value  
   t = t + h
 end do
 
+! close files
 close(50)
 close(60)
+
+! formats:
 51 FORMAT (ES13.6, ES25.16)
 61 FORMAT (ES13.6,6ES25.16)
 
 end subroutine neuden
 
+
+!---------- get_fyt(y_in, t_in) ----------
+! Function to calculate the value of fyt |
+!-----------------------------------------
 function get_fyt(y_in,t_in)
-! function to calculate the value of fyt
   real(real64), intent(in) :: y_in(7)
   real(real64), intent(in) :: t_in 
   real(real64)             :: df(7,7)
@@ -233,10 +248,12 @@ function get_fyt(y_in,t_in)
   get_fyt = matmul(df,y_in)
 end function get_fyt
 
+!----------- init_delayed_consts() ----------
+! Initializes constants of delayed neutrons |
+!--------------------------------------------
 subroutine init_delayed_consts()
-! Initializes constants of delayed neutrons
 ! TODO: This should be generalized in future to support user input
-!
+
 if (isThermal) then ! for thermal neutrons
   beta(1) = 0.000285_real64   ! beta of group 1
   beta(2) = 0.0015975_real64  ! beta of group 2

@@ -1,11 +1,9 @@
 program main
-! work-in-progress
-! input rho
-! input times
-! input tend
-! input initial step size
-! determine if step size is automatic
-! determine reactor type
+
+!---------- program main --------------
+! Not sure what to put here:
+!--------------------------------------
+
 use iso_fortran_env
 use inputinterp
 use neudens
