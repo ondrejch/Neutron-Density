@@ -1,15 +1,22 @@
 module feedback
-! Functions here simulate thermal reactivity feedback
-! 
+!------------------------ module feedback ------------------------
+! Module containing functions responsible for simulating thermal |
+! reactivity feedback                                            |
+!-----------------------------------------------------------------
+
 use iso_fortran_env
 implicit none
-!
+
 real(real64), parameter :: temp_equil    = 300.0     ! 300K of equilibrium temperature
 real(real64)            :: reactor_temp = temp_equil ! Reactor temperature, starts at equilibirum
 
 contains
+
+!-------------- get_feedback(flux,dt) ---------------
+! Returns reactivity feedback based on reactor flux |
+! and time step size                                |
+!----------------------------------------------------
 function get_feedback(flux, dt)
-! Returns reactivity feedback based on reactor flux and time step size
 ! This really should use its own time step...
 !
 ! Constants are made up ... fixme units
