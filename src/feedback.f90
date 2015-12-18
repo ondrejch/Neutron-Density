@@ -1,9 +1,14 @@
-module feedback
 !------------------------ module feedback ------------------------
-! Module containing functions responsible for simulating thermal |
-! reactivity feedback                                            |
+! Module containing functions responsible for simulating thermal 
+! reactivity feedback                                            
+!
+! Authors: 
+!   Dallas Moser <dmoser4@vols.utk.edu> 
+!   Ondrej Chvala <ochvala@utk.edu>
+! 
+! License: GNU/GPL
 !-----------------------------------------------------------------
-
+module feedback
 use iso_fortran_env
 implicit none
 

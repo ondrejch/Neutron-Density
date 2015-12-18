@@ -1,11 +1,17 @@
-module inputinterp
 !----------------------------------------------------------------------
-! Module inputinterp contains subprograms responsible for reading and |
-! interpreting the input file.                                        |
+! Module inputinterp contains subprograms responsible for reading and 
+! interpreting the input file.     
+!
+! Authors: 
+!   Dallas Moser <dmoser4@vols.utk.edu> 
+!   Ondrej Chvala <ochvala@utk.edu>
+! 
+! License: GNU/GPL
 !----------------------------------------------------------------------
 ! Initializes ... 
 ! TODO comments
 !
+module inputinterp
 use iso_fortran_env
 implicit none
 

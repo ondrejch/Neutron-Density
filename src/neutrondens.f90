@@ -1,11 +1,15 @@
-module neudens
 !----------------------- module neudens -----------------------
-! Module responsible for calculating the neutron density and  |
-! delayed neutron precursor concentrations given reactivity   |
-! and time                                                    |
-!--------------------------------------------------------------
-! TODO needs comments
+! Module responsible for calculating the neutron density and  
+! delayed neutron precursor concentrations given reactivity   
+! and time.
 !
+! Authors: 
+!   Dallas Moser <dmoser4@vols.utk.edu> 
+!   Ondrej Chvala <ochvala@utk.edu>
+! 
+! License: GNU/GPL
+!--------------------------------------------------------------
+module neudens
 use iso_fortran_env
 use inputinterp
 use feedback
@@ -16,6 +20,10 @@ real(real64) :: pt           ! reactivity value
 real(real64) :: ngen         ! neutron generation time
 
 contains
+
+!----------- neuden-----------------------------
+! Subroutine that calculates neutron density 
+!-----------------------------------------------
 subroutine neuden()
 integer                 :: i, j                 ! counting variables
 integer                 :: counter              ! iteration counter
@@ -253,7 +261,6 @@ end function get_fyt
 !--------------------------------------------
 subroutine init_delayed_consts()
 ! TODO: This should be generalized in future to support user input
-
 if (isThermal) then ! for thermal neutrons
   beta(1) = 0.000285_real64   ! beta of group 1
   beta(2) = 0.0015975_real64  ! beta of group 2
