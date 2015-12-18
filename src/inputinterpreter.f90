@@ -1,11 +1,17 @@
-module inputinterp
 !----------------------------------------------------------------------
-! Module inputinterp contains subprograms responsible for reading and |
-! interpreting the input file.                                        |
+! Module inputinterp contains subprograms responsible for reading and 
+! interpreting the input file.     
+!
+! Authors: 
+!   Dallas Moser <dmoser4@vols.utk.edu> 
+!   Ondrej Chvala <ochvala@utk.edu>
+! 
+! License: GNU/GPL
 !----------------------------------------------------------------------
 ! Initializes ... 
 ! TODO comments
 !
+module inputinterp
 use iso_fortran_env
 implicit none
 
@@ -62,7 +68,7 @@ contains
       if (ioerr.ne.0) stop "Input data file reading error, bailing out!"
       read(linebuffer, *,iostat=ioerr) inputdata(i,1), inputdata(i,2), inputdata(i,3)
       if (fDebug>5) print *, "[DEBUG] input data: ", i, inputdata(i,1), inputdata(i,2), inputdata(i,3)
-!      inputdata(i,3) = inputdata(i,3)*1E5 ! source strength scaling for development purposes
+!      inputdata(i,3) = inputdata(i,3)*1E25 ! source strength scaling for development purposes
     end do
   end subroutine init_input_data
 
