@@ -112,9 +112,10 @@ open(unit=60, file="ct.out")
 
 y = y0
 do  ! Main loop
-  pt = get_reactivity(t)           ! reactivity at current time 
-  ! pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
-  
+!  pt = get_reactivity(t)           ! reactivity at current time
+!  pt = pt + get_source(t)          ! add source
+! pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
+  pt = get_total_reactivity(t)
   ! assign values to matrix dfdy
   dfdy = 0.0_real64
   dfdy(1,1) = (pt - beta(7))/ngen
@@ -133,9 +134,8 @@ do  ! Main loop
   ! build matrix dfdt
   dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
   dfdt(2:7) = 0.0_real64
-      
   ! add source S(t) to dfdt
-  dfdt(1) = dfdt(1) + get_source(t)
+!  dfdt(1) = dfdt(1) + get_source(t)
   
   LHS = ((1.0_real64/(gma*h))*identity - dfdy)
   ! build first right hand side matrix
@@ -237,7 +237,7 @@ function get_fyt(y_in,t_in)
   real(real64)             :: df(7,7)
   real(real64)             :: get_fyt(7)
   integer                  :: i  
-  pt = get_reactivity(t_in) 
+  pt = get_total_reactivity(t_in) 
   df = 0.0_real64
   df(1,1) = (pt - beta(7))/ngen
   do i = 2,7
