@@ -192,12 +192,15 @@ do  ! Main loop
   if (errmax < 1.0) then
     if (errmax > 0.1296_real64) then
       hnext = 0.9_real64*h/(errmax**0.25)
+      h = hnext
     else
       hnext = 1.5_real64*h
+      h = hnext
     end if
   else
     hnext = 0.9_real64*h/(errmax**(1.0/3.0))
     h = max(abs(hnext), 0.5_real64*abs(h))
+    cycle
   end if
           
 
