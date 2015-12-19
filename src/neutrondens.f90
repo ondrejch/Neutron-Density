@@ -14,11 +14,12 @@ use iso_fortran_env
 use inputinterp
 use feedback
 implicit none
+!
 real(real64) :: beta(7)      ! beta values for each decay group
 real(real64) :: lambda(6)    ! half life constants
 real(real64) :: pt           ! reactivity value
 real(real64) :: ngen         ! neutron generation time
-
+!
 contains
 
 !----------- neuden-----------------------------
@@ -75,7 +76,6 @@ real(real64), parameter :: a2 = 1.0_real64
 real(real64), parameter :: a3 = 0.6_real64
 real(real64)            :: err(7)
 real(real64), parameter :: eps = 1E-5_real64       ! accepted error value
-!real(real64)            :: hretry                  ! recalculated time step size
 real(real64)            :: hnext                   ! next time step size if small error
 real(real64)            :: havg                    ! average time step size
 real(real64)            :: errmax                  ! max error in y
@@ -103,41 +103,31 @@ y0(6) = Ct(5)
 y0(7) = Ct(6)
 
 counter = 0
-t = get_start_time()                 ! store the starting time
-h = inputdata(2,1) - inputdata(1,1)  ! find the first time step size
+t = get_start_time()                ! store the starting time
+h = inputdata(2,1) - inputdata(1,1) ! find the first time step size
 
 ! open files for writing
 open(unit=50, file="nt.out") 
 open(unit=60, file="ct.out")
 
 y = y0
-! write initial values to file
-!write(50,51) t, y(1)
-!write(60, 61, advance='no') t, (y(i), i = 2,7)
-!write(60,*)
-
 do  ! Main loop
-  pt = get_reactivity(t) ! reactivity at current time 
-  
-  ! get temperature feedback - off by default
-  ! pt = pt + get_feedback(y(1),h)
+  pt = get_reactivity(t)           ! reactivity at current time 
+  ! pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
   
   ! assign values to matrix dfdy
+  dfdy = 0.0_real64
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
     dfdy(i,1) = beta(i-1)/ngen
     dfdy(1,i) = lambda(i-1)
-  end do
-
-  dfdy(2:7,2:7)  = 0.0_real64
-  do i = 2,7
     dfdy(i,i) = -lambda(i-1)
   end do
   
   ! build vector fyt
   fyt = get_fyt(y,t)
+
   ! calculate yscale
-!  yscale = norm2(y) + norm2(h * fyt) + 1E-30_real64
   yscale = abs(y) + abs(h * fyt) + 1E-30_real64
  
   ! build matrix dfdt
@@ -202,22 +192,6 @@ do  ! Main loop
     h = max(abs(hnext), 0.5_real64*abs(h))
     cycle
   end if
-          
-
-!   if (errmax > eps) then
-!     hretry = max((0.9_real64*h)/(errmax**(1.0/3.0)),(0.5_real64*h))  ! time step size to retry
-!     hretry = max((0.9_real64*h*errmax**(1.0/3.0)),(0.5_real64*h))  ! time step size to retry
-!     h = hretry
-!     cycle
-!     if (h < nearest_h) cycle ! Note: once we start to cycle the code breaks
-!   else
-!     if (errmax>0.1296) then
-!       hnext = 0.9_real64 / errmax**0.25
-!     else 
-!       hnext = 1.5_real64*h
-!     endif
-!     h = hnext
-!   end if
 
 ! Check if the input file specifies a shorter time step
   if (nearest_h < h) h = nearest_h
@@ -242,13 +216,12 @@ do  ! Main loop
 end do
 
 havg = (get_end_time()-get_start_time())/(counter)
-write(6, *)"havg = ", havg 
+if(fDebug>0) print *, " havg = ", havg 
 
 ! close files
 close(50)
 close(60)
-
-! formats:
+! formats
 51 FORMAT (ES13.6, ES25.16)
 61 FORMAT (ES13.6,6ES25.16)
 
@@ -265,17 +238,13 @@ function get_fyt(y_in,t_in)
   real(real64)             :: get_fyt(7)
   integer                  :: i  
   pt = get_reactivity(t_in) 
+  df = 0.0_real64
   df(1,1) = (pt - beta(7))/ngen
   do i = 2,7
     df(i,1) = beta(i-1)/ngen
     df(1,i) = lambda(i-1)
-  end do
-
-  df(2:7,2:7)  = 0.0_real64
-  do i = 2,7
     df(i,i) = -lambda(i-1)
   end do
-
   get_fyt = matmul(df,y_in)
 end function get_fyt
 

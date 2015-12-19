@@ -11,10 +11,10 @@
 module feedback
 use iso_fortran_env
 implicit none
-
+!
 real(real64), parameter :: temp_equil    = 300.0     ! 300K of equilibrium temperature
 real(real64)            :: reactor_temp = temp_equil ! Reactor temperature, starts at equilibrium
-
+!
 contains
 
 !-------------- get_feedback(flux,dt) ---------------
