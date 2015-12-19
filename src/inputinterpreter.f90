@@ -138,10 +138,12 @@ contains
   end function get_reactivity_slope
 
 
-!----------------- function react_sum(i) -----------------
-! Total reactivity at a given position in the input data |
-! used strictly in get_reactivity_slope(t)               |
-!---------------------------------------------------------
+!------------------ function react_sum(i) ------------------
+! Total reactivity at a given position in the input data   |
+! used strictly in get_reactivity_slope(t). This differs   |
+! from get_total_reactivity(t) in that it only corresponds |
+! to known values from the input file.                     |
+!-----------------------------------------------------------
   function react_sum(i)
     integer, intent(in) :: i
     real(real64)        :: react_sum
@@ -168,6 +170,10 @@ contains
     end do 
   end function get_source
 
+!-------------- get_total_reactivity(t) --------------
+! Calculates the total reactivity due to all sources |
+! at a specfied time.                                |
+!-----------------------------------------------------
   function get_total_reactivity(t)
     real(real64), intent(in) :: t
     real(real64)             :: get_total_reactivity
