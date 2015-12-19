@@ -14,11 +14,12 @@ use iso_fortran_env
 use inputinterp
 use feedback
 implicit none
+!
 real(real64) :: beta(7)      ! beta values for each decay group
 real(real64) :: lambda(6)    ! half life constants
 real(real64) :: pt           ! reactivity value
 real(real64) :: ngen         ! neutron generation time
-
+!
 contains
 
 !----------- neuden-----------------------------
@@ -75,7 +76,6 @@ real(real64), parameter :: a2 = 1.0_real64
 real(real64), parameter :: a3 = 0.6_real64
 real(real64)            :: err(7)
 real(real64), parameter :: eps = 1E-5_real64       ! accepted error value
-!real(real64)            :: hretry                  ! recalculated time step size
 real(real64)            :: hnext                   ! next time step size if small error
 real(real64)            :: havg                    ! average time step size
 real(real64)            :: errmax                  ! max error in y

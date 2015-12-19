@@ -14,16 +14,15 @@
 module inputinterp
 use iso_fortran_env
 implicit none
-
+!
 integer, parameter                   :: fDebug = 3     ! debugging level
 real(real64), protected, allocatable :: inputdata(:,:) ! input data array
              ! inputdata(:,1) - time steps
              ! inputdata(:,2) - externally imposed reactivity rho(t) in absolute values
-             ! inputdata(:,3) - external source S(t) neutrons in neutrons/second
-             
+             ! inputdata(:,3) - external source S(t) neutrons in neutrons/second             
 integer, protected                   :: nRecords = -1  ! length of input array
 logical, protected                   :: isThermal      ! reactor type
-
+!
 contains
   !------------------- init_input_data(filename) -------------------
   ! Initializes the input file by taking the input file name and   |
