@@ -45,7 +45,7 @@ real(real64)            :: RHS3(7)              ! right-hand-side of equation 3
 real(real64)            :: RHS4(7)              ! right-hand-side of equation 4
 real(real64)            :: nt                   ! neutron density
 real(real64)            :: t                    ! time
-real(real64)            :: Ct(6)                ! delayed neutron precursers
+real(real64)            :: Ct(6)                ! delayed neutron precursors
 real(real64)            :: LHS(7,7)             ! left-hand-side of all linear equations
 real(real64)            :: dfdy(7,7)            !
 real(real64)            :: ipiv(7)              ! pivot vector used in llapack subroutines
@@ -74,7 +74,7 @@ real(real64), parameter :: c4 = 0.116_real64
 real(real64), parameter :: a2 = 1.0_real64
 real(real64), parameter :: a3 = 0.6_real64
 real(real64)            :: err(7)
-real(real64), parameter :: eps = 1E-6_real64       ! accepted error value
+real(real64), parameter :: eps = 1E-5_real64       ! accepted error value
 !real(real64)            :: hretry                  ! recalculated time step size
 real(real64)            :: hnext                   ! next time step size if small error
 real(real64)            :: havg                    ! average time step size
@@ -82,7 +82,7 @@ real(real64)            :: errmax                  ! max error in y
 real(real64), parameter :: identity(7,7) = RESHAPE([(1.0_real64,(0.0_real64,i=1,7),j=1,7),1.0_real64],[7,7]) ! identity matrix 
 external dgetrf, dgetrs
 
-! initalize the delayed neutron constants
+! initialize the delayed neutron constants
 call init_delayed_consts()
 ! initial values for nt and ct
 nt = 1.0_real64
