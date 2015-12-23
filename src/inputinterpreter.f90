@@ -104,51 +104,24 @@ contains
     real(real64), intent(in) :: t                    ! desired time
     real(real64)             :: get_reactivity_slope ! d\rho/dt at desired time
     integer                  :: i                    ! counting variable
+
     do i = 1, nRecords-1
       if (t >= inputdata(i,1) .and. t < inputdata(i+1,1)) then
         if (i==1) then      ! 1st time step, use forward method
-          get_reactivity_slope = (react_sum(i+1)-(react_sum(i))) / (inputdata(i+1,1)-inputdata(i,1))
+          get_reactivity_slope = (inputdata(i+1,2)-inputdata(i,2)) / (inputdata(i+1,1)-inputdata(i,1))
           exit
         else                ! use centered method
-          get_reactivity_slope = (react_sum(i+1)-react_sum(i-1)) / (inputdata(i+1,1)-inputdata(i-1,1))
+          get_reactivity_slope = (inputdata(i+1,2)-inputdata(i-1,2)) / (inputdata(i+1,1)-inputdata(i-1,1))
           exit
         end if
       else if (t > inputdata(nRecords,1)) then ! backward
-        get_reactivity_slope = (react_sum(i)-react_sum(i-1)) / (inputdata(i,1)-inputdata(i-1,1))
+        get_reactivity_slope = (inputdata(i,2)-inputdata(i-1,2)) / (inputdata(i,1)-inputdata(i-1,1))
       else
         cycle
       end if
     end do 
-
-!    do i = 1, nRecords-1
-!      if (t >= inputdata(i,1) .and. t < inputdata(i+1,1)) then
-!        if (i==1) then      ! 1st time step, use forward method
-!          get_reactivity_slope = (inputdata(i+1,2)-inputdata(i,2)) / (inputdata(i+1,1)-inputdata(i,1))
-!          exit
-!        else                ! use centered method
-!          get_reactivity_slope = (inputdata(i+1,2)-inputdata(i-1,2)) / (inputdata(i+1,1)-inputdata(i-1,1))
-!          exit
-!        end if
-!      else if (t > inputdata(nRecords,1)) then ! backward
-!        get_reactivity_slope = (inputdata(i,2)-inputdata(i-1,2)) / (inputdata(i,1)-inputdata(i-1,1))
-!      else
-!        cycle
-!      end if
-!    end do 
   end function get_reactivity_slope
 
-
-!------------------ function react_sum(i) ------------------
-! Total reactivity at a given position in the input data   |
-! used strictly in get_reactivity_slope(t). This differs   |
-! from get_total_reactivity(t) in that it only corresponds |
-! to known values from the input file.                     |
-!-----------------------------------------------------------
-  function react_sum(i)
-    integer, intent(in) :: i
-    real(real64)        :: react_sum
-    react_sum = inputdata(i,2) + inputdata(i,3)
-  end function react_sum
 
 
   !--------------- get_source(t) ---------------
@@ -170,15 +143,6 @@ contains
     end do 
   end function get_source
 
-!-------------- get_total_reactivity(t) --------------
-! Calculates the total reactivity due to all sources |
-! at a specfied time.                                |
-!-----------------------------------------------------
-  function get_total_reactivity(t)
-    real(real64), intent(in) :: t
-    real(real64)             :: get_total_reactivity
-    get_total_reactivity = get_reactivity(t) + get_source(t) ! + get_feedback when selected
-  end function get_total_reactivity
   
   !--------------- nearest_time_step(t) ----------------
   ! Returns distance from a given time (t) to the next |

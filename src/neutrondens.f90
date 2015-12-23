@@ -112,11 +112,11 @@ open(unit=60, file="ct.out")
 
 y = y0
 do  ! Main loop
-!  pt = get_reactivity(t)           ! reactivity at current time
-!  pt = pt + get_source(t)          ! add source
-! pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
-  pt = get_total_reactivity(t)
-  ! assign values to matrix dfdy
+  pt = get_reactivity(t)           ! reactivity at current time
+  y(1) = y(1) + get_source(t)*h    ! add source
+!  pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
+
+! assign values to matrix dfdy
   dfdy = 0.0_real64
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
@@ -214,7 +214,6 @@ do  ! Main loop
 ! find next time value  
   t = t + h
 end do
-
 havg = (get_end_time()-get_start_time())/(counter)
 if(fDebug>0) print *, " havg = ", havg 
 
@@ -237,7 +236,7 @@ function get_fyt(y_in,t_in)
   real(real64)             :: df(7,7)
   real(real64)             :: get_fyt(7)
   integer                  :: i  
-  pt = get_total_reactivity(t_in) 
+  pt = get_reactivity(t_in) 
   df = 0.0_real64
   df(1,1) = (pt - beta(7))/ngen
   do i = 2,7
