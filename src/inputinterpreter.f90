@@ -104,6 +104,7 @@ contains
     real(real64), intent(in) :: t                    ! desired time
     real(real64)             :: get_reactivity_slope ! d\rho/dt at desired time
     integer                  :: i                    ! counting variable
+
     do i = 1, nRecords-1
       if (t >= inputdata(i,1) .and. t < inputdata(i+1,1)) then
         if (i==1) then      ! 1st time step, use forward method
@@ -120,6 +121,8 @@ contains
       end if
     end do 
   end function get_reactivity_slope
+
+
 
   !--------------- get_source(t) ---------------
   ! Returns source value at a given time (t).  |
@@ -139,6 +142,7 @@ contains
       end if
     end do 
   end function get_source
+
   
   !--------------- nearest_time_step(t) ----------------
   ! Returns distance from a given time (t) to the next |

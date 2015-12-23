@@ -112,10 +112,11 @@ open(unit=60, file="ct.out")
 
 y = y0
 do  ! Main loop
-  pt = get_reactivity(t)           ! reactivity at current time 
-  ! pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
-  
-  ! assign values to matrix dfdy
+  pt = get_reactivity(t)           ! reactivity at current time
+  y(1) = y(1) + get_source(t)*h    ! add source
+!  pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
+
+! assign values to matrix dfdy
   dfdy = 0.0_real64
   dfdy(1,1) = (pt - beta(7))/ngen
   do i = 2,7
@@ -133,9 +134,8 @@ do  ! Main loop
   ! build matrix dfdt
   dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
   dfdt(2:7) = 0.0_real64
-      
   ! add source S(t) to dfdt
-  dfdt(1) = dfdt(1) + get_source(t)
+!  dfdt(1) = dfdt(1) + get_source(t)
   
   LHS = ((1.0_real64/(gma*h))*identity - dfdy)
   ! build first right hand side matrix
@@ -214,7 +214,6 @@ do  ! Main loop
 ! find next time value  
   t = t + h
 end do
-
 havg = (get_end_time()-get_start_time())/(counter)
 if(fDebug>0) print *, " havg = ", havg 
 
