@@ -11,12 +11,14 @@ http://www.doiserbia.nb.rs/img/doi/1451-3994/2009/1451-39940901003Y.pdf
 
 Example inputs:
 
-input1 : fast/ constant reactivity of 0.0022/ t = 0 to 10
+input1 : fast/ constant reactivity of 0.0022/ t = 0 to 10s
 
-input2 : fast/ ramp reactivity of 0.0044t/ t = 0 to 1 
+input2 : fast/ ramp reactivity of 0.0044t/ t = 0 to 1 s
 
-input3 : thermal/ constant reactivity of -0.00375/ t = 0 to 10
+input3 : thermal/ constant reactivity of -0.00375/ t = 0 to 10s
 
-input_zigzag : thermal/ zigzag reactivity described on page 9 of article/ t = 0 to 10
+input_zigzag : thermal/ zigzag reactivity described on page 9 of article/ t = 0 to 10s
 
+input_source1 : fast/ constant reactivity of 0.0022/ 2 seconds of source at 1*10^6 n/s/ t = 1 to 10s
 
+input_source2 : fast/ constant reactivity of 0.0022/ 2 seconds of source at 100 n/s/ t = 1 to 10 s
