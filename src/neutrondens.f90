@@ -114,7 +114,7 @@ y = y0
 do  ! Main loop
   pt = get_reactivity(t)           ! reactivity at current time
   y(1) = y(1) + get_source(t)*h    ! add source
-!  pt = pt + get_feedback(y(1),h) ! get temperature feedback - off by default
+  pt = pt + get_feedback(y(1), t, h)   ! get temperature feedback - off by default
 
 ! assign values to matrix dfdy
   dfdy = 0.0_real64

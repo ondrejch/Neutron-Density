@@ -10,6 +10,7 @@
 !-----------------------------------------------------------------
 module feedback
 use iso_fortran_env
+use inputinterp
 implicit none
 !
 real(real64), parameter :: temp_equil    = 300.0     ! 300K of equilibrium temperature
@@ -21,12 +22,13 @@ contains
 ! Returns reactivity feedback based on reactor flux |
 ! and time step size                                |
 !----------------------------------------------------
-function get_feedback(flux, dt)
+function get_feedback(flux, t, dt)
 ! This really should use its own time step...
 !
 ! Constants are made up ... fixme units
 real(real64)            :: get_feedback          ! reactivity feedback
-real(real64)            :: flux                  ! neutron flux (nt)
+real(real64)            :: flux                  ! neutron flux [nt]
+real(real64)            :: t                     ! time [s]
 real(real64)            :: dt                    ! time step [s]
 real(real64), parameter :: alpha_temp    = 3.2969E-4 ! Temperature coefficient of reactivity [K-1], note pcm = 1E-5
 real(real64), parameter :: heat_per_nt_s = 10.0  ! Heat generation per neutron per second
@@ -53,7 +55,7 @@ delta_reactor_temp = dt*(fission_heating - ht_conduction - ht_radiation)/heat_ca
 reactor_temp = reactor_temp + delta_reactor_temp
 
 ! Feedback
-get_feedback = delta_reactor_temp * alpha_temp
+get_feedback = delta_reactor_temp * alpha_temp * get_reactivity(t)
 
 end function get_feedback
 
