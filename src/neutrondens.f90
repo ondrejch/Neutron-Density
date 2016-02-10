@@ -31,9 +31,9 @@ integer                 :: counter              ! iteration counter
 integer                 :: info                 ! llapack error variable
 real(real64)            :: h                    ! time step size
 real(real64)            :: nearest_h            ! time step size to next input data
-real(real64)            :: y(7)                 ! matrix containing n(t) and c(t)
-real(real64)            :: y0(7)                ! matrix containing initial values for n(t) and c(t)
-real(real64)            :: yscale(7)            ! truncation error scaling value
+real(real64)            :: y(8)                 ! matrix containing n(t) and c(t)
+real(real64)            :: y0(8)                ! matrix containing initial values for n(t) and c(t)
+real(real64)            :: yscale(8)            ! truncation error scaling value
 real(real64)            :: g1(7)                ! variable of first equation
 real(real64)            :: g2(7)                ! variable of second equation
 real(real64)            :: g3(7)                ! variable of fourth equation
@@ -47,8 +47,8 @@ real(real64)            :: RHS4(7)              ! right-hand-side of equation 4
 real(real64)            :: nt                   ! neutron density
 real(real64)            :: t                    ! time
 real(real64)            :: Ct(6)                ! delayed neutron precursors
-real(real64)            :: LHS(7,7)             ! left-hand-side of all linear equations
-real(real64)            :: dfdy(7,7)            !
+real(real64)            :: LHS(7,8)             ! left-hand-side of all linear equations
+real(real64)            :: dfdy(7,8)            !
 real(real64)            :: ipiv(7)              ! pivot vector used in llapack subroutines
 real(real64), parameter :: gma = 0.5_real64        
 real(real64), parameter :: a21 = 2.0_real64
@@ -79,7 +79,7 @@ real(real64), parameter :: eps = 1E-5_real64       ! accepted error value
 real(real64)            :: hnext                   ! next time step size if small error
 real(real64)            :: havg                    ! average time step size
 real(real64)            :: errmax                  ! max error in y
-real(real64), parameter :: identity(7,7) = RESHAPE([(1.0_real64,(0.0_real64,i=1,7),j=1,7),1.0_real64],[7,7]) ! identity matrix 
+real(real64), parameter :: identity(7,8) = RESHAPE([(1.0_real64,(0.0_real64,i=1,8),j=1,7),1.0_real64],[7,8]) ! identity matrix 
 external dgetrf, dgetrs
 
 ! initialize the delayed neutron constants
@@ -101,7 +101,7 @@ y0(4) = Ct(3)
 y0(5) = Ct(4)
 y0(6) = Ct(5)
 y0(7) = Ct(6)
-
+y0(8) = 1.0_real64
 counter = 0
 t = get_start_time()                ! store the starting time
 h = inputdata(2,1) - inputdata(1,1) ! find the first time step size
@@ -114,12 +114,13 @@ open(unit=70, file="T.out")
 y = y0
 do  ! Main loop
   pt = get_reactivity(t)           ! reactivity at current time
-  y(1) = y(1) + get_source(t)*h    ! add source
+  y(1) = y(1)
   pt = pt + get_feedback(y(1), t, h)   ! get temperature feedback - off by default
 
 ! assign values to matrix dfdy
   dfdy = 0.0_real64
   dfdy(1,1) = (pt - beta(7))/ngen
+  dfdy(1,8) = get_source(t)
   do i = 2,7
     dfdy(i,1) = beta(i-1)/ngen
     dfdy(1,i) = lambda(i-1)
@@ -133,17 +134,18 @@ do  ! Main loop
   yscale = abs(y) + abs(h * fyt) + 1E-30_real64
  
   ! build matrix dfdt
-  dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t)
+  dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t) + get_source_slope(t)
   dfdt(2:7) = 0.0_real64
-  ! add source S(t) to dfdt
-!  dfdt(1) = dfdt(1) + get_source(t)
   
+  ! build left hand side of the equation.. this only has to be calculated once
   LHS = ((1.0_real64/(gma*h))*identity - dfdy)
+
   ! build first right hand side matrix
   RHS1 = fyt + h*c1*dfdt
+
   ! LU decomposition using LAPACK
   ! reference material for dgetrf can be found at: http://www.netlib.org/lapack/explore-html/d3/d6a/dgetrf_8f.html 
-  call dgetrf(7, 7, LHS, 7, ipiv, info)
+  call dgetrf(7, 8, LHS, 7, ipiv, info)
   if (info > 0) stop "Matrix is singular"
   if (info < 0) stop "Illegal value"
   
@@ -171,9 +173,9 @@ do  ! Main loop
   call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS4, 7, info)
   g4 = RHS4
 
-! shortest time step we should take
+  ! shortest time step we should take
   nearest_h = nearest_time_step(t)
-! Automatic step size calculation
+  ! Automatic step size calculation
   err = e1*g1+e2*g2+e3*g3+e4*g4    ! calculate error values
   errmax = 0.0
   do i = 1, 7
@@ -194,33 +196,34 @@ do  ! Main loop
     cycle
   end if
 
-! Check if the input file specifies a shorter time step
+  ! Check if the input file specifies a shorter time step
   if (nearest_h < h) h = nearest_h
 
-! write current values to file
+  ! write current values to file
   write(50,51) t, y(1)
   write(60, 61, advance='no') t, (y(i), i=2,7)
   write(60,*)
 
-! Calculate next y
+  ! Calculate next y
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
 
-! calculate average time step size  
+  ! calculate average time step size  
   counter = counter + 1
 
   if (t >= get_end_time()) then
     exit ! exit main do loop
   end if
   
-! find next time value  
+  ! find next time value  
   t = t + h
 end do
-havg = (get_end_time()-get_start_time())/(counter)
+havg = (get_end_time()-get_start_time())/counter
 if(fDebug>0) print *, " havg = ", havg 
 
 ! close files
 close(50)
 close(60)
+close(70)
 ! formats
 51 FORMAT (ES13.6, ES25.16)
 61 FORMAT (ES13.6,6ES25.16)
@@ -232,14 +235,15 @@ end subroutine neuden
 ! Function to calculate the value of fyt |
 !-----------------------------------------
 function get_fyt(y_in,t_in)
-  real(real64), intent(in) :: y_in(7)
+  real(real64), intent(in) :: y_in(8)
   real(real64), intent(in) :: t_in 
-  real(real64)             :: df(7,7)
+  real(real64)             :: df(7,8)
   real(real64)             :: get_fyt(7)
   integer                  :: i  
   pt = get_reactivity(t_in) 
   df = 0.0_real64
   df(1,1) = (pt - beta(7))/ngen
+  df(1,8) = get_source(t_in)
   do i = 2,7
     df(i,1) = beta(i-1)/ngen
     df(1,i) = lambda(i-1)

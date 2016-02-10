@@ -143,6 +143,31 @@ contains
     end do 
   end function get_source
 
+  !--------------- get_source_slope(t) ---------------
+  ! Returns the slope of the source data at a        |
+  ! given time (t), also known as d\S/dt.            |
+  !---------------------------------------------------
+  function get_source_slope(t)
+    real(real64), intent(in) :: t                    ! desired time
+    real(real64)             :: get_source_slope     ! d\S/dt at desired time
+    integer                  :: i                    ! counting variable
+
+    do i = 1, nRecords-1
+      if (t >= inputdata(i,1) .and. t < inputdata(i+1,1)) then
+        if (i==1) then      ! 1st time step, use forward method
+          get_source_slope = (inputdata(i+1,3)-inputdata(i,3)) / (inputdata(i+1,1)-inputdata(i,1))
+          exit
+        else                ! use centered method
+          get_source_slope = (inputdata(i+1,3)-inputdata(i-1,3)) / (inputdata(i+1,1)-inputdata(i-1,1))
+          exit
+        end if
+      else if (t > inputdata(nRecords,1)) then ! backward
+        get_source_slope = (inputdata(i,3)-inputdata(i-1,3)) / (inputdata(i,1)-inputdata(i-1,1))
+      else
+        cycle
+      end if
+    end do 
+  end function get_source_slope
   
   !--------------- nearest_time_step(t) ----------------
   ! Returns distance from a given time (t) to the next |
