@@ -40,9 +40,18 @@ call neuden()
 contains
 subroutine code_usage() 
 ! Prints how to run the code
-print *, " This program does  !!TODO!! "
-print *, " It expects a single argument: the input file name"
-print *, " The format of the input file name is: !! TODO!!!"
+print *, "-------------------------- Code Usage ---------------------------"
+print *, " This program solves the point reactor kinetics equations using |"
+print *, " the Rosenbrock method of solving differential equations.       |"
+print *, "                                                                |"
+print *, " It expects a single argument: input file name                  |"
+print *, "                                                                |"
+print *, " The format of the input file is:                               |"
+print *, "   |      column 1      |       column 2       |   column 3   | |"
+print *, " ------------------------------------------------------------   |"
+print *, " 1 | reactor type (t/f) |         blank        |     blank    | |"
+print *, " 2 |      time (s)      | reactivity insertion | source (n/s) | |" 
+print *, "-----------------------------------------------------------------"
 end subroutine code_usage
 
 end program main
