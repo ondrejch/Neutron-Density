@@ -34,22 +34,22 @@ real(real64)            :: nearest_h            ! time step size to next input d
 real(real64)            :: y(8)                 ! matrix containing n(t) and c(t)
 real(real64)            :: y0(8)                ! matrix containing initial values for n(t) and c(t)
 real(real64)            :: yscale(8)            ! truncation error scaling value
-real(real64)            :: g1(7)                ! variable of first equation
-real(real64)            :: g2(7)                ! variable of second equation
-real(real64)            :: g3(7)                ! variable of fourth equation
-real(real64)            :: g4(7)                ! variable of fifth equation
-real(real64)            :: dfdt(7)              !
-real(real64)            :: fyt(7)               ! 
-real(real64)            :: RHS1(7)              ! right-hand-side of equation 1
-real(real64)            :: RHS2(7)              ! right-hand-side of equation 2
-real(real64)            :: RHS3(7)              ! right-hand-side of equation 3
-real(real64)            :: RHS4(7)              ! right-hand-side of equation 4
+real(real64)            :: g1(8)                ! variable of first equation
+real(real64)            :: g2(8)                ! variable of second equation
+real(real64)            :: g3(8)                ! variable of fourth equation
+real(real64)            :: g4(8)                ! variable of fifth equation
+real(real64)            :: dfdt(8)              !
+real(real64)            :: fyt(8)               ! 
+real(real64)            :: RHS1(8)              ! right-hand-side of equation 1
+real(real64)            :: RHS2(8)              ! right-hand-side of equation 2
+real(real64)            :: RHS3(8)              ! right-hand-side of equation 3
+real(real64)            :: RHS4(8)              ! right-hand-side of equation 4
 real(real64)            :: nt                   ! neutron density
 real(real64)            :: t                    ! time
 real(real64)            :: Ct(6)                ! delayed neutron precursors
-real(real64)            :: LHS(7,8)             ! left-hand-side of all linear equations
-real(real64)            :: dfdy(7,8)            !
-real(real64)            :: ipiv(7)              ! pivot vector used in llapack subroutines
+real(real64)            :: LHS(8,8)             ! left-hand-side of all linear equations
+real(real64)            :: dfdy(8,8)            !
+real(real64)            :: ipiv(8)              ! pivot vector used in llapack subroutines
 real(real64), parameter :: gma = 0.5_real64        
 real(real64), parameter :: a21 = 2.0_real64
 real(real64), parameter :: a31 = 1.92_real64
@@ -74,12 +74,12 @@ real(real64), parameter :: c3 = 2.42_real64
 real(real64), parameter :: c4 = 0.116_real64
 real(real64), parameter :: a2 = 1.0_real64
 real(real64), parameter :: a3 = 0.6_real64
-real(real64)            :: err(7)
+real(real64)            :: err(8)
 real(real64), parameter :: eps = 1E-5_real64       ! accepted error value
 real(real64)            :: hnext                   ! next time step size if small error
 real(real64)            :: havg                    ! average time step size
 real(real64)            :: errmax                  ! max error in y
-real(real64), parameter :: identity(7,8) = RESHAPE([(1.0_real64,(0.0_real64,i=1,8),j=1,7),1.0_real64],[7,8]) ! identity matrix 
+real(real64), parameter :: identity(8,8) = RESHAPE([(1.0_real64,(0.0_real64,i=1,8),j=1,8),1.0_real64],[8,8]) ! identity matrix 
 external dgetrf, dgetrs
 
 ! initialize the delayed neutron constants
@@ -114,8 +114,7 @@ open(unit=70, file="T.out")
 y = y0
 do  ! Main loop
   pt = get_reactivity(t)           ! reactivity at current time
-  y(1) = y(1)
-  pt = pt + get_feedback(y(1), t, h)   ! get temperature feedback - off by default
+!  pt = pt + get_feedback(y(1), t, h)   ! get temperature feedback - off by default
 
 ! assign values to matrix dfdy
   dfdy = 0.0_real64
@@ -135,7 +134,7 @@ do  ! Main loop
  
   ! build matrix dfdt
   dfdt(1) = (y(1)/ngen)*get_reactivity_slope(t) + get_source_slope(t)
-  dfdt(2:7) = 0.0_real64
+  dfdt(2:8) = 0.0_real64
   
   ! build left hand side of the equation.. this only has to be calculated once
   LHS = ((1.0_real64/(gma*h))*identity - dfdy)
@@ -145,32 +144,32 @@ do  ! Main loop
 
   ! LU decomposition using LAPACK
   ! reference material for dgetrf can be found at: http://www.netlib.org/lapack/explore-html/d3/d6a/dgetrf_8f.html 
-  call dgetrf(7, 8, LHS, 7, ipiv, info)
+  call dgetrf(8, 8, LHS, 8, ipiv, info)
   if (info > 0) stop "Matrix is singular"
   if (info < 0) stop "Illegal value"
   
   ! solve for g1 using LAPACK
   ! reference material for dgetrs can be found at: http://www.netlib.org/lapack/explore-html/d6/d49/dgetrs_8f.html
-  call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS1, 7, info)
+  call dgetrs('N', 8, 1, LHS, 8, ipiv, RHS1, 8, info)
   if (info /= 0) stop "Solution of linear system failed"
   g1 = RHS1 
   
   ! solve for g2
   fyt = get_fyt((y + a21*g1), (t + a2*h))
   RHS2 = fyt + h*c2*dfdt + (c21*g1)/h
-  call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS2, 7, info)
+  call dgetrs('N', 8, 1, LHS, 8, ipiv, RHS2, 8, info)
   g2 = RHS2
 
   ! solve for g3
   fyt = get_fyt((y + a31*g1 + a32*g2), (t + a3*h))
   RHS3 = fyt + h*c3*dfdt + (c31*g1 + c32*g2)/h
-  call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS3, 7, info)
+  call dgetrs('N', 8, 1, LHS, 8, ipiv, RHS3, 8, info)
   g3 = RHS3
 
   ! solve for g4
   fyt = get_fyt((y + a31*g1 + a32*g2), (t + a3*h))
   RHS4 = fyt + h*c4*dfdt + (c41*g1 + c42* g2 + c43*g3)/h
-  call dgetrs('N', 7, 1, LHS, 7, ipiv, RHS4, 7, info)
+  call dgetrs('N', 8, 1, LHS, 8, ipiv, RHS4, 8, info)
   g4 = RHS4
 
   ! shortest time step we should take
@@ -178,7 +177,7 @@ do  ! Main loop
   ! Automatic step size calculation
   err = e1*g1+e2*g2+e3*g3+e4*g4    ! calculate error values
   errmax = 0.0
-  do i = 1, 7
+  do i = 1, 8
     errmax = max(errmax, abs(err(i)/yscale(i))) ! calculate max error including truncation
   end do
   errmax = errmax/eps
@@ -237,8 +236,8 @@ end subroutine neuden
 function get_fyt(y_in,t_in)
   real(real64), intent(in) :: y_in(8)
   real(real64), intent(in) :: t_in 
-  real(real64)             :: df(7,8)
-  real(real64)             :: get_fyt(7)
+  real(real64)             :: df(8,8)
+  real(real64)             :: get_fyt(8)
   integer                  :: i  
   pt = get_reactivity(t_in) 
   df = 0.0_real64
