@@ -110,7 +110,6 @@ h = inputdata(2,1) - inputdata(1,1) ! find the first time step size
 open(unit=50, file="nt.out") 
 open(unit=60, file="ct.out")
 open(unit=70, file="T.out")
-
 y = y0
 do  ! Main loop
   pt = get_reactivity(t)               ! reactivity at current time
