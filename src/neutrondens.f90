@@ -1,89 +1,90 @@
 !----------------------- module neudens -----------------------
-! Module responsible for calculating the neutron density and  
-! delayed neutron precursor concentrations given reactivity   
-! and time.
-!
-! Authors: 
-!   Dallas Moser <dmoser4@vols.utk.edu> 
-!   Ondrej Chvala <ochvala@utk.edu>
-! 
-! License: GNU/GPL
+! Module responsible for calculating the neutron density and  | 
+! delayed neutron precursor concentrations given reactivity   | 
+! and time.                                                   |
+!                                                             |
+! Authors:                                                    |
+!   Dallas Moser <dmoser4@vols.utk.edu>                       |
+!   Ondrej Chvala <ochvala@utk.edu>                           |
+!                                                             |
+! License: GNU/GPL                                            |
 !--------------------------------------------------------------
 module neudens
 use iso_fortran_env
 use inputinterp
 use feedback
 implicit none
-!
+
 real(real64) :: beta(7)      ! beta values for each decay group
 real(real64) :: lambda(6)    ! half life constants
 real(real64) :: pt           ! reactivity value
 real(real64) :: ngen         ! neutron generation time
-!
+
 contains
 
-!----------- neuden-----------------------------
-! Subroutine that calculates neutron density 
-!-----------------------------------------------
+!-------------------- neuden --------------------
+!  Subroutine that calculates neutron density   |
+!------------------------------------------------
 subroutine neuden()
-integer                 :: i, j                 ! counting variables
-integer                 :: counter              ! iteration counter
-integer                 :: info                 ! llapack error variable
-real(real64)            :: h                    ! time step size
-real(real64)            :: nearest_h            ! time step size to next input data
-real(real64)            :: y(8)                 ! matrix containing n(t) and c(t)
-real(real64)            :: y0(8)                ! matrix containing initial values for n(t) and c(t)
-real(real64)            :: yscale(8)            ! truncation error scaling value
-real(real64)            :: g1(8)                ! variable of first equation
-real(real64)            :: g2(8)                ! variable of second equation
-real(real64)            :: g3(8)                ! variable of fourth equation
-real(real64)            :: g4(8)                ! variable of fifth equation
-real(real64)            :: dfdt(8)              !
-real(real64)            :: fyt(8)               ! 
-real(real64)            :: RHS1(8)              ! right-hand-side of equation 1
-real(real64)            :: RHS2(8)              ! right-hand-side of equation 2
-real(real64)            :: RHS3(8)              ! right-hand-side of equation 3
-real(real64)            :: RHS4(8)              ! right-hand-side of equation 4
-real(real64)            :: nt                   ! neutron density
-real(real64)            :: t                    ! time
-real(real64)            :: Ct(6)                ! delayed neutron precursors
-real(real64)            :: LHS(8,8)             ! left-hand-side of all linear equations
-real(real64)            :: dfdy(8,8)            !
-real(real64)            :: ipiv(8)              ! pivot vector used in llapack subroutines
-real(real64), parameter :: gma = 0.5_real64        
-real(real64), parameter :: a21 = 2.0_real64
-real(real64), parameter :: a31 = 1.92_real64
-real(real64), parameter :: a32 = 0.24_real64
-real(real64), parameter :: c21 = -8.0_real64
-real(real64), parameter :: c31 = 14.88_real64
-real(real64), parameter :: c32 = 2.4_real64
-real(real64), parameter :: c41 = -0.869_real64
-real(real64), parameter :: c42 = -0.432_real64
-real(real64), parameter :: c43 = -0.4_real64
-real(real64), parameter :: b1 = 19.0_real64/9.0_real64
-real(real64), parameter :: b2 = 0.5_real64
-real(real64), parameter :: b3 = 25.0_real64/108.0_real64
-real(real64), parameter :: b4 = 125.0_real64/108.0_real64
-real(real64), parameter :: e1 = 17.0_real64/54.0_real64
-real(real64), parameter :: e2 = 7.0_real64/36.0_real64
-real(real64), parameter :: e3 = 0.0_real64
-real(real64), parameter :: e4 = 125.0_real64/108.0_real64
-real(real64), parameter :: c1 = 0.5_real64
-real(real64), parameter :: c2 = -1.5_real64
-real(real64), parameter :: c3 = 2.42_real64
-real(real64), parameter :: c4 = 0.116_real64
-real(real64), parameter :: a2 = 1.0_real64
-real(real64), parameter :: a3 = 0.6_real64
-real(real64)            :: err(8)
-real(real64), parameter :: eps = 1E-5_real64       ! accepted error value
-real(real64)            :: hnext                   ! next time step size if small error
-real(real64)            :: havg                    ! average time step size
-real(real64)            :: errmax                  ! max error in y
+integer                 :: i, j                           ! Counting variables
+integer                 :: counter                        ! Iteration counter
+integer                 :: info                           ! llapack error variable
+real(real64), parameter :: gma = 0.5_real64               ! Constants for differentiation                         
+real(real64), parameter :: a21 = 2.0_real64               !             |
+real(real64), parameter :: a31 = 1.92_real64              !             |
+real(real64), parameter :: a32 = 0.24_real64              !             |
+real(real64), parameter :: c21 = -8.0_real64              !             | 
+real(real64), parameter :: c31 = 14.88_real64             !             |
+real(real64), parameter :: c32 = 2.4_real64               !             |
+real(real64), parameter :: c41 = -0.869_real64            !             |
+real(real64), parameter :: c42 = -0.432_real64            !             |
+real(real64), parameter :: c43 = -0.4_real64              !             | 
+real(real64), parameter :: b1 = 19.0_real64/9.0_real64    !             |
+real(real64), parameter :: b2 = 0.5_real64                !             |
+real(real64), parameter :: b3 = 25.0_real64/108.0_real64  !             |
+real(real64), parameter :: b4 = 125.0_real64/108.0_real64 !             |
+real(real64), parameter :: c1 = 0.5_real64                !             |
+real(real64), parameter :: c2 = -1.5_real64               !             |
+real(real64), parameter :: c3 = 2.42_real64               !             |
+real(real64), parameter :: c4 = 0.116_real64              !             |
+real(real64), parameter :: a2 = 1.0_real64                !             |
+real(real64), parameter :: a3 = 0.6_real64                !    ________\_/_________
+real(real64), parameter :: e1 = 17.0_real64/54.0_real64   ! Constants used in error calculations
+real(real64), parameter :: e2 = 7.0_real64/36.0_real64    !             |
+real(real64), parameter :: e3 = 0.0_real64                !             |
+real(real64), parameter :: e4 = 125.0_real64/108.0_real64 !    ________\_/_________
 real(real64), parameter :: identity(8,8) = RESHAPE([(1.0_real64,(0.0_real64,i=1,8),j=1,8),1.0_real64],[8,8]) ! identity matrix 
+real(real64), parameter :: eps = 1E-5_real64    ! accepted error value
+real(real64)            :: h                    ! Time step size
+real(real64)            :: nearest_h            ! Time step size to next input data
+real(real64)            :: y(8)                 ! Matrix containing n(t) and c(t)
+real(real64)            :: y0(8)                ! Matrix containing initial values for n(t) and c(t)
+real(real64)            :: yscale(8)            ! Truncation error scaling value
+real(real64)            :: g1(8)                ! Variable of first equation
+real(real64)            :: g2(8)                ! Variable of second equation
+real(real64)            :: g3(8)                ! Variable of fourth equation
+real(real64)            :: g4(8)                ! Variable of fifth equation
+real(real64)            :: dfdt(8)              ! Derivative of f(y,t) with respect to t
+real(real64)            :: fyt(8)               ! Function f(y,t) used to represent the PRK equations in matrix form
+real(real64)            :: RHS1(8)              ! Right-hand-side of equation 1
+real(real64)            :: RHS2(8)              ! Right-hand-side of equation 2
+real(real64)            :: RHS3(8)              ! Right-hand-side of equation 3
+real(real64)            :: RHS4(8)              ! Right-hand-side of equation 4
+real(real64)            :: nt                   ! Neutron density as a function of time
+real(real64)            :: t                    ! Time
+real(real64)            :: Ct(6)                ! Delayed neutron precursor concentrations
+real(real64)            :: LHS(8,8)             ! Left-hand-side of all linear equations
+real(real64)            :: dfdy(8,8)            ! Derivative of f(y,t) with respect to y
+real(real64)            :: ipiv(8)              ! Pivot vector used in llapack subroutines
+real(real64)            :: err(8)               ! Array of error values
+real(real64)            :: hnext                ! Next time step size if small error
+real(real64)            :: havg                 ! Average time step size
+real(real64)            :: errmax               ! Max error in y
 external dgetrf, dgetrs
 
 ! initialize the delayed neutron constants
 call init_delayed_consts()
+
 ! initial values for nt and ct
 nt = 1.0_real64
 Ct(1) = (beta(1)/(ngen*lambda(1)))*nt 
@@ -112,10 +113,10 @@ open(unit=60, file="ct.out")
 open(unit=70, file="T.out")
 y = y0
 do  ! Main loop
-  pt = get_reactivity(t)               ! reactivity at current time
+  pt = get_reactivity(t)                               ! reactivity at current time
   pt = pt + get_feedback(y(1)+get_source(t)*h, t, h)   ! get temperature feedback - off by default
 
-! assign values to matrix dfdy
+  ! assign values to matrix dfdy
   dfdy = 0.0_real64
   dfdy(1,1) = (pt - beta(7))/ngen
   dfdy(1,8) = get_source(t)
@@ -173,8 +174,9 @@ do  ! Main loop
 
   ! shortest time step we should take
   nearest_h = nearest_time_step(t)
+  
   ! Automatic step size calculation
-  err = e1*g1+e2*g2+e3*g3+e4*g4    ! calculate error values
+  err = e1*g1+e2*g2+e3*g3+e4*g4                 ! calculate error values
   errmax = 0.0
   do i = 1, 8
     errmax = max(errmax, abs(err(i)/yscale(i))) ! calculate max error including truncation
@@ -202,7 +204,7 @@ do  ! Main loop
   write(60, 61, advance='no') t, (y(i), i=2,7)
   write(60,*)
 
-  ! Calculate next y
+  ! calculate next y
   y = y + (b1*g1 + b2*g2 + b3*g3 + b4*g4)
 
   ! calculate average time step size  
@@ -222,6 +224,7 @@ if(fDebug>0) print *, " havg = ", havg
 close(50)
 close(60)
 close(70)
+
 ! formats
 51 FORMAT (ES13.6, ES25.16)
 61 FORMAT (ES13.6,6ES25.16)
@@ -254,23 +257,23 @@ end function get_fyt
 ! Initializes constants of delayed neutrons |
 !--------------------------------------------
 subroutine init_delayed_consts()
-! TODO: This should be generalized in future to support user input
+! TODO: generalize to support other inputs
 if (isThermal) then ! for thermal neutrons
-  beta(1) = 0.000285_real64   ! beta of group 1
-  beta(2) = 0.0015975_real64  ! beta of group 2
-  beta(3) = 0.00141_real64    ! beta of group 3
-  beta(4) = 0.0030525_real64  ! beta of group 4
-  beta(5) = 0.00096_real64    ! beta of group 5
-  beta(6) = 0.000195_real64   ! beta of group 6
-  beta(7) = 0.0075_real64     ! Total Beta
+  beta(1) = 0.000285_real64    ! beta of group 1
+  beta(2) = 0.0015975_real64   ! beta of group 2
+  beta(3) = 0.00141_real64     ! beta of group 3
+  beta(4) = 0.0030525_real64   ! beta of group 4
+  beta(5) = 0.00096_real64     ! beta of group 5
+  beta(6) = 0.000195_real64    ! beta of group 6
+  beta(7) = 0.0075_real64      ! Total Beta
 
-  lambda(1) = 0.0127_real64   ! decay constant of group 1
-  lambda(2) = 0.0317_real64   ! decay constant of group 2
-  lambda(3) = 0.115_real64    ! decay constant of group 3
-  lambda(4) = 0.311_real64    ! decay constant of group 4
-  lambda(5) = 1.4_real64      ! decay constant of group 5
-  lambda(6) = 3.87_real64     ! decay constant of group 6
-  ngen      = 0.0005_real64   ! average neutron generation time
+  lambda(1) = 0.0127_real64    ! decay constant of group 1
+  lambda(2) = 0.0317_real64    ! decay constant of group 2
+  lambda(3) = 0.115_real64     ! decay constant of group 3
+  lambda(4) = 0.311_real64     ! decay constant of group 4
+  lambda(5) = 1.4_real64       ! decay constant of group 5
+  lambda(6) = 3.87_real64      ! decay constant of group 6
+  ngen      = 0.0005_real64    ! average neutron generation time
 else ! for fast neutrons
   beta(1) = 0.0001672_real64   ! beta of group 1     
   beta(2) = 0.001232_real64    ! beta of group 2
