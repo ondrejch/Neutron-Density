@@ -45,7 +45,8 @@ real(real64), parameter  :: heat_per_fission   = .35E-10                ! Heat p
 real(real64), parameter  :: volume             = 100.0**3               ! Volume of one cubic meter core [cm3]
 real(real64), parameter  :: fuel_specific_heat = 120                    ! Specific heat of U-235 [W s kg-1 K-1]
 real(real64), parameter  :: fuel_density       = 0.01905                ! Density of U-235 [kg cm-3]
-real(real64), parameter  :: alpha_temp         = -3.2969E-4             ! Temperature coefficient of reactivity [K-1], note pcm = 1E-5
+!real(real64), parameter  :: alpha_temp         = -3.2969E-4             ! Temperature coefficient of reactivity [K-1], note pcm = 1E-5
+real(real64), parameter  :: alpha_temp         = -3.0            ! Temperature coefficient of reactivity [K-1], note pcm = 1E-5
 real(real64), parameter  :: sb                 = 5.670367E-8            ! Stefan–Boltzmann constant [W m−2 K−4]
 real(real64), parameter  :: emisivity          = 0.94                   ! Rough Concrete 
 
@@ -88,11 +89,12 @@ delta_reactor_temp = (power - ht_conduction - ht_radiation)*energy_temp_conversi
 
 reactor_temp = reactor_temp + delta_reactor_temp
 
-! Write results to file named T.out
-write(70,*) t, reactor_temp, power, ht_conduction, ht_radiation
-
 ! Output change in reactivity due to thermal feedback  
-get_feedback = delta_reactor_temp * alpha_temp
+!get_feedback = delta_reactor_temp * alpha_temp
+get_feedback = (reactor_temp - temp_equil) * alpha_temp
+
+! Write results to file named T.out
+write(70,*) t, n_density, reactor_temp, power, ht_conduction, ht_radiation, get_feedback
 
 end function get_feedback
 
